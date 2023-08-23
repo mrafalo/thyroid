@@ -67,3 +67,11 @@ df.groupby(['label_cancer']).size().groupby(level=0).max()
 
 
 df.groupby(['HP_PTC']).size().groupby(level=0).max() 
+
+
+
+
+row = [{'A':'X11', 'B':'X112', 'C':'X113'}]
+df = pd.DataFrame(row)
+df.to_csv('my_file.csv', mode='a', header=False, index=False)
+

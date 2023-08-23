@@ -195,16 +195,12 @@ def load_data_file(_data_file):
 def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _cancer_filter):
     
     df = load_data_file(_data_file)
-    print(len(df))
-    
+
     df1 = df[df.label_cancer.isin(_cancer_filter)]
-    print('df1:', len(df1))
-    
+
     df2 = df[df.rak == 0]
-    print('df2:', len(df2))
     df = pd.concat([df1,df2])
-       
-    print('df:', len(df))
+      
     X_train = []     
     y_train = []
     X_test = []     
@@ -284,12 +280,6 @@ def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _canc
     y_test = to_categorical(y_test)
 
 
-    print('X_train:',X_train.shape)        
-    print('y_train:',y_train.shape)
-    
-    print('X_test:',X_test.shape)        
-    print('y_test:',y_test.shape)
-    
     return X_train, y_train, X_test, y_test        
                     
 

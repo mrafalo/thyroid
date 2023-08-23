@@ -152,8 +152,11 @@ def reinitialize(model):
             
 def train_model_multi_cv(_models, _epochs, _iters, _filter="none", _cancer_filter = ['PTC']):
     
+    
     logger.info('training processing start...')
  
+
+        
     tf.keras.utils.set_random_seed(123)
     random.seed(123)
    
@@ -189,6 +192,7 @@ def train_model_multi_cv(_models, _epochs, _iters, _filter="none", _cancer_filte
     iter_nums = []
     train_dataset_sizes = []
     test_dataset_sizes = []
+    filters = []
     
     model_cnt = 1
     for m1 in _models:
@@ -219,70 +223,40 @@ def train_model_multi_cv(_models, _epochs, _iters, _filter="none", _cancer_filte
             
             train_dataset_sizes.append(len(y_test))
             test_dataset_sizes.append(len(y_train))
+            filters.append(_filter)
             
             model_nums.append(model_cnt)
             iter_nums.append(i+1)
             
-        model_cnt = model_cnt + 1
+            histories = pd.DataFrame(list(zip(filters, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test,accuracies, train_dataset_sizes, test_dataset_sizes)), 
+                                     columns =["filter", "model_nums", "iter_nums", "cancer_ratios_train", "cancer_ratios_test","accuracies", "train_dataset_sizes", "test_dataset_sizes"])
+            
+            histories.to_csv('results.csv', mode='a', header=False, index=False)
 
+        model_cnt = model_cnt + 1
         
     logger.info("training finished!")
-    
-    histories = pd.DataFrame(list(zip(model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test,accuracies, train_dataset_sizes, test_dataset_sizes)), 
-                             columns =["model_nums", "iter_nums", "cancer_ratios_train", "cancer_ratios_test","accuracies", "train_dataset_sizes", "test_dataset_sizes"])
-    
-    return histories
+    return 1
 
+
+def main_loop():
     
+    f = open('results.csv','w') 
+    f.write("filter, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test, accuracies, train_dataset_sizes,test_dataset_sizes\n")
+    f.close()
+    
+    #m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+    
+    models = [ m.model_densenet123(IMG_WIDTH, IMG_HEIGHT), m.model_resnet(IMG_WIDTH, IMG_HEIGHT)]   
+    hist = train_model_multi_cv(models, 30,3, 'none')
+    
+    
+    #models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+    #hist = train_model_multi_cv(models, 30,3, 'bw')
 # importlib.reload(work.models)
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
-hist = train_model_multi_cv(models, 30,3)
 
-hist.columns
-hist.reindex(columns=['model_nums','iter_nums','cancer_ratios_train','accuracies'])
+main_loop()
 
-tf.keras.utils.set_random_seed(123)
-X_train, y_train, X_test, y_test = d.split_data(BASE_FILE_PATH, TRAIN_PATH_HEAT, TEST_PATH_HEAT, 0, True)
-models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
-hist = train_model_multi(models, X_train, y_train, X_test, y_test, 30)
-
-#2023-07-04 23:17:47,247(main) INFO: model: 1/3 max acc = 0.81 last acc = 0.81
-#2023-07-04 23:21:21,391(main) INFO: model: 2/3 max acc = 0.74 last acc = 0.7
-#2023-07-04 23:25:03,973(main) INFO: model: 3/3 max acc = 0.8 last acc = 0.69
-
-#2023-07-06 09:19:04,745(main) INFO: model: 1/3 max acc = 0.79 last acc = 0.74
-#2023-07-06 09:21:28,170(main) INFO: model: 2/3 max acc = 0.79 last acc = 0.73
-#2023-07-06 09:24:01,109(main) INFO: model: 3/3 max acc = 0.84 last acc = 0.8
-
-
-tf.keras.utils.set_random_seed(123)
-X_train, y_train, X_test, y_test = d.split_data(BASE_FILE_PATH, TRAIN_PATH, TEST_PATH, 0, True)
-models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
-hist = train_model_multi(models, X_train, y_train, X_test, y_test, 30)
-
-type(hist)
-
-history = hist[2]
-
-plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-
-
-
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-
-wandb.init(config={"bs": 12})
