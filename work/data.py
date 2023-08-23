@@ -1,0 +1,300 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import cv2
+import numpy as np
+import os
+from imgaug import augmenters
+from tensorflow.keras.utils import to_categorical
+import random
+import shutil
+import utils.image_manipulator as im
+import fnmatch
+
+
+def augment(_dataset):
+    # data augmentation
+    seq = augmenters.Sequential(
+        [
+            augmenters.Fliplr(0.5),
+            augmenters.Flipud(0.5),
+            augmenters.Affine(rotate=(-15, 15)),
+            augmenters.Affine(shear=(-15, 15)),
+            augmenters.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}),
+            augmenters.Affine(scale=(0.9, 1.1)),
+        ]
+    )
+    return seq.augment_images(_dataset)
+
+
+
+def resize_images(_input_path, _output_path, _width, _heigt):
+    
+    res = 0
+    for f in os.listdir(_input_path):
+        filename = os.fsdecode(f)
+        if filename.endswith(".png"): 
+            image = cv2.imread(_input_path+f)
+            image = im.blur_manual(image, 2, 1)
+            resized = cv2.resize(image, (_width, _heigt), interpolation = cv2.INTER_AREA)
+            gray = resized #cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+            cv2.imwrite(_output_path+'resized_' + f, gray)
+            res = res + 1
+    return res
+
+def split_files(_source_path, _train_path, _test_path, _test_ratio):
+
+    
+    paths = [_train_path, _test_path]
+    for p in paths:
+        isExist = os.path.exists(p)
+        if not isExist:
+            os.makedirs(p)
+    
+    for f in os.listdir(_train_path):
+       file_path = os.path.join(_train_path, f)
+       if os.path.isfile(file_path):
+         os.remove(file_path)
+
+    for f in os.listdir(_test_path):
+       file_path = os.path.join(_test_path, f)
+       if os.path.isfile(file_path):
+         os.remove(file_path)
+         
+    number_of_test_files = int(np.round(_test_ratio * len(fnmatch.filter(os.listdir(_source_path), '*.png'))))
+
+    test_list = []
+    for i in range(number_of_test_files):
+        random_file = random.choice(os.listdir(_source_path))
+        filename = os.fsdecode(random_file)
+        if filename.endswith(".png"): 
+            shutil.copy(_source_path + random_file, _test_path + random_file)
+            test_list.append(filename)
+       
+    for f in os.listdir(_source_path):
+        filename = os.fsdecode(f)
+        if filename.endswith(".png"): 
+            if not filename in test_list:
+                shutil.copy(_source_path + f, _train_path + f)
+        
+
+def mass_transformer(_source_path, _dest_path_base, _dest_path_canny, _dest_path_heat,  _dest_path_sobel, _dest_path_bw, _dest_path_felzen):
+    res = 0
+    paths = [_dest_path_base, _dest_path_canny, _dest_path_heat,  _dest_path_sobel, _dest_path_bw, _dest_path_felzen]
+    for p in paths:
+        isExist = os.path.exists(p)
+        if not isExist:
+            os.makedirs(p)
+   
+    for f in os.listdir(_source_path):
+        filename = os.fsdecode(f)
+        if filename.endswith(".png"):
+            img = cv2.imread(_source_path + f)
+            canny = im.edges(img, 30, 105)
+            heat = im.heatmap(img)
+            sobel = im.sobel(img)
+            bw = im.bw_mask(img)
+            felzen = im.felzenszwalb(img, 110)
+            
+            cv2.imwrite(_dest_path_base + 'base_'+  f, img)
+            cv2.imwrite(_dest_path_canny + 'canny_'+  f, canny)
+            cv2.imwrite(_dest_path_heat + 'heat_'+  f, heat)
+            cv2.imwrite(_dest_path_sobel + 'sobel_'+  f, sobel)
+            cv2.imwrite(_dest_path_bw + 'bw_'+  f, bw)
+            cv2.imwrite(_dest_path_felzen + 'felzen_'+  f, felzen)
+            
+            res = res + 1
+            
+    return res
+
+            
+                    
+
+def malignancy_splitter(_data_file, _source_path, _dest_path_benign, _dest_path_malignant,  _transformation):
+    df = pd.read_csv(_data_file, sep=';')
+    
+    
+    for f in os.listdir(_source_path):
+        filename = os.fsdecode(f)
+        if filename.endswith(".png"): 
+            
+            f_slit = f.split('_')
+            id_coi = f_slit[5]
+            
+            rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
+            
+            if _transformation == 'canny':
+                img = cv2.imread(_source_path + f)
+                edge = im.edges(img, 30, 105)
+                if rak==1:
+                    cv2.imwrite(_dest_path_malignant+'canny_'+f, edge)
+                else:
+                    cv2.imwrite(_dest_path_benign+'canny_'+f, edge)
+            
+            elif _transformation == 'heat':
+                img = cv2.imread(_source_path + f)
+                edge = im.heatmap(img)
+                if rak==1:
+                    cv2.imwrite(_dest_path_malignant+'heat_'+f, edge)
+                else:
+                    cv2.imwrite(_dest_path_benign+'heat_'+f, edge)
+            
+            elif _transformation == 'sobel':
+                img = cv2.imread(_source_path + f)
+                edge = im.sobel(img)
+                if rak==1:
+                    cv2.imwrite(_dest_path_malignant+'sobel_'+f, edge)
+                else:
+                    cv2.imwrite(_dest_path_benign+'sobel_'+f, edge)
+            
+            elif _transformation == 'bw':
+                img = cv2.imread(_source_path + f)
+                edge = im.bw_mask(img)
+                if rak==1:
+                    cv2.imwrite(_dest_path_malignant+'bw_'+f, edge)
+                else:
+                    cv2.imwrite(_dest_path_benign+'bw_'+f, edge)
+
+            elif _transformation == 'felzen':
+                img = cv2.imread(_source_path + f)
+                edge = im.felzenszwalb(img, 110)
+                if rak==1:
+                    cv2.imwrite(_dest_path_malignant+'felzen_'+f, edge)
+                else:
+                    cv2.imwrite(_dest_path_benign+'felzen_'+f, edge)
+                    
+            else:
+                if rak==1:
+                    shutil.copy(_source_path + f, _dest_path_malignant)
+                else: 
+                    shutil.copy(_source_path + f, _dest_path_benign)
+
+def label_cancer (row):
+   if row['HP_PTC'] == 1 :
+      return 'PTC'
+   if row['HP_FTC'] == 1 :
+      return 'FTC'
+   if row['HP_Hurthlea'] == 1:
+      return 'HURTHLEA'
+   if row['HP_MTC']  == 1:
+      return 'MTC'
+   if row['HP_DOBRZE_ZROZNICOWANE'] == 1:
+      return 'DOBRZE_ZROZNICOWANY'
+   if row['HP_ANA'] == 1:
+      return 'ANAPLASTYCZNY'
+   if row['HP_PLASKO'] == 1:
+      return 'PLASKONABLONKOWY'
+   else:
+    return 'BENIGN'
+
+def load_data_file(_data_file):
+    df = pd.read_csv(_data_file, sep=';')
+    df['label_cancer'] = df.apply (lambda row: label_cancer(row), axis=1)
+
+    return df
+    
+def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _cancer_filter):
+    
+    df = load_data_file(_data_file)
+    print(len(df))
+    
+    df1 = df[df.label_cancer.isin(_cancer_filter)]
+    print('df1:', len(df1))
+    
+    df2 = df[df.rak == 0]
+    print('df2:', len(df2))
+    df = pd.concat([df1,df2])
+       
+    print('df:', len(df))
+    X_train = []     
+    y_train = []
+    X_test = []     
+    y_test = []
+    
+    for f in os.listdir(_train_path):
+        f_slit = f.split('_')
+        id_coi = f_slit[6]
+    
+        if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
+            rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
+            y_train.append(rak)
+            X_train.append(np.array(cv2.imread(_train_path + f, cv2.IMREAD_GRAYSCALE)))
+
+    
+    if _augument > 0:
+        X_train_tmp = X_train
+        y_train_tmp = y_train
+        
+        for i in range(0, _augument):
+            X_train_augumented = augment(X_train)
+            X_train_tmp = X_train_tmp + X_train_augumented
+            y_train_tmp = y_train_tmp + y_train
+            
+        X_train = X_train_tmp
+        y_train = y_train_tmp
+        
+    
+    train_size = len(X_train)
+    im_width = X_train[0].shape[0]
+    im_height = X_train[0].shape[1]
+        
+    X_train = np.array(X_train)
+    y_train = np.array(y_train)
+    
+    tmp_mean = np.mean(X_train)
+    tmp_std = np.std(X_train)
+    if _normalize:
+        X_train = (X_train-tmp_mean)/tmp_std
+    
+    
+    for f in os.listdir(_test_path):
+        f_slit = f.split('_')
+        id_coi = f_slit[6]
+        if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
+            rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
+            y_test.append(rak)
+            #X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)).astype(np.float32))
+            X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)))
+    
+    if _augument > 0:
+        X_test_tmp = X_test
+        y_test_tmp = y_test
+        
+        for i in range(0, _augument):
+            X_test_augumented = augment(X_test)
+            X_test_tmp = X_test_tmp + X_test_augumented
+            y_test_tmp = y_test_tmp + y_test
+            
+        X_test = X_test_tmp
+        y_test = y_test_tmp
+        
+    test_size = len(X_test)
+      
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
+    
+    tmp_mean = np.mean(X_test)
+    tmp_std = np.std(X_test)
+    if _normalize:
+        X_test = (X_test-tmp_mean)/tmp_std
+    
+    X_train = X_train.reshape(train_size,im_width,im_height,1)
+    X_test = X_test.reshape(test_size,im_width,im_height,1)
+    
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
+
+
+    print('X_train:',X_train.shape)        
+    print('y_train:',y_train.shape)
+    
+    print('X_test:',X_test.shape)        
+    print('y_test:',y_test.shape)
+    
+    return X_train, y_train, X_test, y_test        
+                    
+
+
+
+
+
+
