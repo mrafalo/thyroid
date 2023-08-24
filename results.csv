@@ -1,1 +1,7 @@
 filter, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test, accuracies, train_dataset_sizes,test_dataset_sizes
+['PTC'],none,0,1,0.52,0.46,0.64,56,350
+['PTC'],none,1,1,0.52,0.49,0.71,51,355
+['PTC'],none,2,1,0.51,0.58,0.72,50,356
+['PTC'],none,3,1,0.52,0.48,0.58,60,346
+['PTC'],none,4,1,0.51,0.54,0.72,57,349
+['PTC'],none,5,1,0.51,0.55,0.69,55,351

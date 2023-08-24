@@ -196,10 +196,10 @@ def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _canc
     
     df = load_data_file(_data_file)
 
-    df1 = df[df.label_cancer.isin(_cancer_filter)]
-
-    df2 = df[df.rak == 0]
-    df = pd.concat([df1,df2])
+    if _cancer_filter !='none':
+        df1 = df[df.label_cancer.isin(_cancer_filter)]
+        df2 = df[df.rak == 0]
+        df = pd.concat([df1,df2])
       
     X_train = []     
     y_train = []
