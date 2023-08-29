@@ -17,6 +17,12 @@ import logging
 import keras
 from matplotlib import pyplot as plt
 
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+
 
 
 with open(r'config.yaml') as file:
@@ -59,19 +65,92 @@ def label_cancer (row):
    else:
     return 'BENIGN'
 
-df.columns
-df['label_cancer'] = df.apply (lambda row: label_cancer(row), axis=1)
+# Function to perform training with giniIndex.
+def train_using_gini(X_train, X_test, y_train):
+  
+    # Creating the classifier object
+    clf_gini = DecisionTreeClassifier(criterion = "gini",
+            random_state = 100,max_depth=8, min_samples_leaf=5)
+  
+    # Performing training
+    clf_gini.fit(X_train, y_train)
+    return clf_gini
+      
+# Function to perform training with entropy.
+def tarin_using_entropy(X_train, X_test, y_train):
+  
+    # Decision tree with entropy
+    clf_entropy = DecisionTreeClassifier(
+            criterion = "entropy", random_state = 100,
+            max_depth = 8, min_samples_leaf = 5)
+  
+    # Performing training
+    clf_entropy.fit(X_train, y_train)
+    return clf_entropy
+  
+  
+# Function to make predictions
+def prediction(X_test, clf_object):
+  
+    # Predicton on test with giniIndex
+    y_pred = clf_object.predict(X_test)
+    print("Predicted values:")
+    print(y_pred)
+    return y_pred
+      
+# Function to calculate accuracy
+def cal_accuracy(y_test, y_pred):
+      
+    #print("Confusion Matrix: ",
+    #confusion_matrix(y_test, y_pred))
+      
+    print ("Accuracy : ",
+    accuracy_score(y_test,y_pred)*100)
+      
+    print("Report : ",
+    classification_report(y_test, y_pred))
+  
+    
+df = d.load_data_file(BASE_FILE_PATH)
+len(df)        
 
 
-df.groupby(['label_cancer']).size().groupby(level=0).max() 
+zmienne = ['echo_nieznacznie hipo', 'echo_gleboko hipo', 'echo_hiperechogeniczna',
+'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
+'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',
+'ksztalt_okragly', 'ksztalt_nieregularny', 'orientacja_rownolegla',
+'granice_rowne', 'granice_zatarte', 'granice_nierowne', 'brzegi_katowe',
+'brzegi_mikrolobularne', 'brzegi_spikularne', 'halo', 'halo_cienka',
+'halo_gruba ', 'Zwapnienia_mikrozwapnienia',
+'Zwapnienia_makrozwapnienia', 'Zwapnienia_makro_obrączkowate',
+'Zwapnienia_artefakty_typu_ogona_komety', 'torbka_modelowanie',
+'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
+'unaczynienie_centralne', 'unaczynienie_mieszane', 
+'wezly_chlonne_patologiczne']
 
 
-df.groupby(['HP_PTC']).size().groupby(level=0).max() 
+df = df.fillna(0)
+X = df.loc[:, zmienne]
+Y = df.loc[:, ['rak']]
+
+df1 = df[df.label_cancer.isin(['PTC'])]
+df2 = df[df.rak == 0]
+df = pd.concat([df1,df2])
+
+X_train, X_test, y_train, y_test = train_test_split( X, Y, test_size = 0.3, random_state = 100)
 
 
-
-
-row = [{'A':'X11', 'B':'X112', 'C':'X113'}]
-df = pd.DataFrame(row)
-df.to_csv('my_file.csv', mode='a', header=False, index=False)
-
+clf_gini = train_using_gini(X_train, X_test, y_train)
+clf_entropy = tarin_using_entropy(X_train, X_test, y_train)
+  
+# Operational Phase
+print("Results Using Gini Index:")
+  
+# Prediction using gini
+y_pred_gini = prediction(X_test, clf_gini);
+cal_accuracy(y_test, y_pred_gini)
+  
+print("Results Using Entropy:")
+# Prediction using entropy
+y_pred_entropy = prediction(X_test, clf_entropy)
+cal_accuracy(y_test, y_pred_entropy)

@@ -133,10 +133,12 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _cancer_filter = 'none
     
     logger.info('processing start... ' + 'model: ' + str(model_cnt) + ' cv iters: ' + str(_iters) + ' filter: ' + str(_filter))
     
-    for m_num in range(model_cnt):
-        
-        
-        for i in range(_iters):
+    
+    for i in range(_iters):
+        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_TEST_PATH, 0.15)
+        X_train, y_train, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_TEST_PATH, 0, True, _cancer_filter)
+
+        for m_num in range(model_cnt):
             
             accuracies = []
             cancer_ratios_train = []
@@ -154,9 +156,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _cancer_filter = 'none
             
             keras.backend.clear_session()
                     
-            d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_TEST_PATH, 0.15)
-            X_train, y_train, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_TEST_PATH, 0, True, _cancer_filter)
-
+          
             #logger.info('iteration: ' + str(i+1) + "/" + str(_iters))
             m1.compile(optimizer = Adam(learning_rate=BASE_LR), loss='categorical_crossentropy', metrics=["accuracy"]) 
             hist = m1.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=BATCH_SIZE, epochs=_epochs, verbose=False)
@@ -195,22 +195,22 @@ def main_loop(_epochs, _iters):
     np.random.seed(123)
     
     f = open('results.csv','w') 
-    f.write("filter, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test, accuracies, train_dataset_sizes,test_dataset_sizes\n")
+    f.write("cancer_filters, filter, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test, accuracies, train_dataset_sizes,test_dataset_sizes\n")
     f.close()
     
     hist = train_model_multi_cv(_epochs, _iters, 'none', ['PTC'])
     hist = train_model_multi_cv(_epochs, _iters, 'bw', ['PTC'])
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', ['PTC'])
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', ['PTC'])
-    hist = train_model_multi_cv(_epochs, _iters, 'felzen', ['PTC'])
-    hist = train_model_multi_cv(_epochs, _iters, 'sobel', ['PTC'])
+    #hist = train_model_multi_cv(_epochs, _iters, 'heat', ['PTC'])
+    # hist = train_model_multi_cv(_epochs, _iters, 'canny', ['PTC'])
+    # hist = train_model_multi_cv(_epochs, _iters, 'felzen', ['PTC'])
+    # hist = train_model_multi_cv(_epochs, _iters, 'sobel', ['PTC'])
     
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'none')
-    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'none')
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'none')
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'none')
-    hist = train_model_multi_cv(_epochs, _iters, 'felzen', 'none')
-    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'none')
+    # hist = train_model_multi_cv(_epochs, _iters, 'none', 'none')
+    # hist = train_model_multi_cv(_epochs, _iters, 'bw', 'none')
+    # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'none')
+    # hist = train_model_multi_cv(_epochs, _iters, 'canny', 'none')
+    # hist = train_model_multi_cv(_epochs, _iters, 'felzen', 'none')
+    # hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'none')
     
     logger.info("training finished!")
     

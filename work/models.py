@@ -187,15 +187,21 @@ def model_cnn1(_img_width, _img_height):
 def model_cnn2(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
-    model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(8, (3, 3), padding="same", activation="sigmoid"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(12, (3, 3), padding="same", activation="sigmoid"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(16, (3, 3), padding="same", activation="sigmoid"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(24, (3, 3), padding="same", activation="sigmoid"))
+    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(Conv2D(32, (3, 3), padding="same", activation="sigmoid"))
+    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(Conv2D(48, (3, 3), padding="same", activation="sigmoid"))
+    model.add(Dropout(0.5))
+    model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
-    model.add(Dense(2, activation='sigmoid'))
+    model.add(Dense(2, activation='softmax'))
     
     return model
 
@@ -206,16 +212,31 @@ def model_cnn3(_img_width, _img_height):
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
+    model.add(Flatten())
+    model.add(Dense(2, activation='relu'))
+    
+    return model
+
+def model_cnn4(_img_width, _img_height):
+    model = Sequential()
+    model.add(Input(shape=(_img_height, _img_width, 1)))
+    model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-
+    model.add(Dropout(0.5))
     model.add(Flatten())
     model.add(Dense(2, activation='sigmoid'))
     
     return model
 
-def model_cnn4(_img_width, _img_height):
+def model_cnn5(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
@@ -230,13 +251,13 @@ def model_cnn4(_img_width, _img_height):
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(64, (3, 3), padding="same", activation="relu"))
     model.add(Dropout(0.5))
-    model.add(Conv2D(filters=1,kernel_size=(4, 4),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
+    model.add(Conv2D(filters=1,kernel_size=(3, 3)))
     model.add(Flatten())
     model.add(Dense(2, activation='softmax'))
     
     return model
 
-def model_cnn5(_img_width, _img_height):
+def model_cnn6(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
@@ -246,25 +267,28 @@ def model_cnn5(_img_width, _img_height):
     model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.2))
     model.add(Flatten())
     model.add(Dense(2, activation='softmax'))
     
     return model
 
-def model_cnn6(_img_width, _img_height):
+def model_cnn7(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
    
-    model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(12, (2, 2), padding="same", activation="sigmoid"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(16, (2, 2), padding="same", activation="sigmoid"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
 
-    model.add(Dropout(0.8))
-    model.add(Conv2D(filters=1,kernel_size=(6, 6),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
+    model.add(Conv2D(32, (2, 2), padding="same", activation="sigmoid"))
+    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    
+    model.add(Dropout(0.5))
+    model.add(Conv2D(filters=1,kernel_size=(4, 4),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
-    model.add(Dense(2, activation='softmax'))
+    model.add(Dense(2, activation='relu'))
     
     return model
 
@@ -339,7 +363,9 @@ def model_sequence_manual_2(_img_width, _img_height):
     models.append(model_cnn4(_img_width, _img_height))
     models.append(model_cnn5(_img_width, _img_height))
     models.append(model_cnn6(_img_width, _img_height))
-    models.append(model_densenet123(_img_width, _img_height))
+    models.append(model_cnn7(_img_width, _img_height))
+    models.append(model_densenet201(_img_width, _img_height))
+    models.append(model_densenet121(_img_width, _img_height))
         
         
     return models
@@ -352,7 +378,7 @@ def model_resnet(_img_width, _img_height):
     
     return model
 
-def model_densenet123(_img_width, _img_height):
+def model_densenet201(_img_width, _img_height):
     
     model = tf.keras.applications.DenseNet201(
         include_top=True,
@@ -364,3 +390,14 @@ def model_densenet123(_img_width, _img_height):
     
     return model
 
+def model_densenet121(_img_width, _img_height):
+    
+    model = tf.keras.applications.DenseNet121(
+        include_top=True,
+        weights=None,
+        input_tensor=None,
+        input_shape=(_img_width,_img_height, 1),
+        pooling=None,
+        classes=2 )
+    
+    return model
