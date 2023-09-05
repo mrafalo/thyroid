@@ -11,8 +11,8 @@ from keras import backend as K
 from tensorflow.keras.optimizers import RMSprop
 from keras.callbacks import EarlyStopping
 from keras.layers import Dense, Conv2D,  MaxPool2D, Flatten, GlobalAveragePooling2D,  BatchNormalization, Layer, Add
-from tensorflow.keras.optimizers import SGD
 import logging
+from tensorflow.keras.optimizers import RMSprop, Adam, SGD
 
 logger = logging.getLogger('main')
 logger.setLevel(logging.INFO)
@@ -167,16 +167,16 @@ def model_cnn1(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
     model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(32, (7, 7), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(48, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
     model.add(Dropout(0.5))
     model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
@@ -187,21 +187,21 @@ def model_cnn1(_img_width, _img_height):
 def model_cnn2(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
-    model.add(Conv2D(8, (3, 3), padding="same", activation="sigmoid"))
+    model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(12, (3, 3), padding="same", activation="sigmoid"))
+    model.add(Conv2D(32, (7, 7), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (3, 3), padding="same", activation="sigmoid"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="sigmoid"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(32, (3, 3), padding="same", activation="sigmoid"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(48, (3, 3), padding="same", activation="sigmoid"))
+    model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
     model.add(Dropout(0.5))
-    model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
+    #model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
-    model.add(Dense(2, activation='softmax'))
+    model.add(Dense(2, activation='sigmoid'))
     
     return model
 
@@ -209,14 +209,17 @@ def model_cnn3(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
     model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
+    model.add(Dropout(0.5))
+    model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
-    model.add(Dense(2, activation='relu'))
+    model.add(Dense(2, activation='sigmoid'))
     
     return model
 
@@ -224,13 +227,18 @@ def model_cnn4(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
     model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(32, (7, 7), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-    model.add(Dropout(0.5))
+    model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
+    model.add(Dropout(0.8))
+    model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
     model.add(Dense(2, activation='sigmoid'))
     
@@ -240,18 +248,18 @@ def model_cnn5(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
     model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(32, (7, 7), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(32, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(64, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
     model.add(Dropout(0.5))
-    model.add(Conv2D(filters=1,kernel_size=(3, 3)))
+    model.add(Conv2D(1, (7, 7), padding="same", activation="relu"))
     model.add(Flatten())
     model.add(Dense(2, activation='softmax'))
     
@@ -261,13 +269,18 @@ def model_cnn6(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
     model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
     model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (3, 3), padding="same", activation="relu"))
+    model.add(Conv2D(32, (7, 7), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(24, (3, 3), padding="same", activation="relu"))
-    model.add(Dropout(0.2))
+    model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
+    model.add(Dropout(0.8))
+    model.add(Conv2D(filters=1,kernel_size=(5, 5),activation='softmax'))
     model.add(Flatten())
     model.add(Dense(2, activation='softmax'))
     
@@ -276,19 +289,21 @@ def model_cnn6(_img_width, _img_height):
 def model_cnn7(_img_width, _img_height):
     model = Sequential()
     model.add(Input(shape=(_img_height, _img_width, 1)))
-   
-    model.add(Conv2D(12, (2, 2), padding="same", activation="sigmoid"))
+    model.add(Conv2D(8, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(12, (3, 3), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(16, (5, 5), padding="same", activation="relu"))
+    model.add(MaxPool2D((2, 2), strides=(1, 1)))
+    model.add(Conv2D(24, (5, 5), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    model.add(Conv2D(16, (2, 2), padding="same", activation="sigmoid"))
+    model.add(Conv2D(32, (7, 7), padding="same", activation="relu"))
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
-
-    model.add(Conv2D(32, (2, 2), padding="same", activation="sigmoid"))
-    model.add(MaxPool2D((2, 2), strides=(2, 2)))
-    
+    model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
     model.add(Dropout(0.5))
-    model.add(Conv2D(filters=1,kernel_size=(4, 4),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
+    model.add(Conv2D(filters=1,kernel_size=(5, 5),activation='softmax'))
     model.add(Flatten())
-    model.add(Dense(2, activation='relu'))
+    model.add(Dense(2, activation='softmax'))
     
     return model
 
@@ -364,13 +379,25 @@ def model_sequence_manual_2(_img_width, _img_height):
     models.append(model_cnn5(_img_width, _img_height))
     models.append(model_cnn6(_img_width, _img_height))
     models.append(model_cnn7(_img_width, _img_height))
+    models.append(model_VGG16(_img_width, _img_height))
+    models.append(model_VGG19(_img_width, _img_height))
+    models.append(model_ResNet50(_img_width, _img_height))
     models.append(model_densenet201(_img_width, _img_height))
     models.append(model_densenet121(_img_width, _img_height))
         
         
     return models
 
-    
+
+def model_sequence_manual_3(_img_width, _img_height):
+    models = []
+               
+    models.append(model_cnn1(_img_width, _img_height))
+    models.append(model_cnn3(_img_width, _img_height))  
+    models.append(model_cnn5(_img_width, _img_height))  
+        
+    return models    
+
 def model_resnet(_img_width, _img_height):
     model = ResNet18(2)
     model.build(input_shape = (None,_img_width,_img_height, 1))
@@ -401,3 +428,66 @@ def model_densenet121(_img_width, _img_height):
         classes=2 )
     
     return model
+
+def model_VGG16(_img_width, _img_height):
+    
+    model = tf.keras.applications.VGG16(
+        include_top=True,
+        weights=None,
+        input_tensor=None,
+        input_shape=(_img_width,_img_height, 1),
+        pooling=None,
+        classes=2,
+        classifier_activation="softmax")
+ 
+    return model
+
+
+def model_VGG19(_img_width, _img_height):
+    
+    model = tf.keras.applications.VGG19(
+        include_top=True,
+        weights=None,
+        input_tensor=None,
+        input_shape=(_img_width,_img_height, 1),
+        pooling=None,
+        classes=2,
+        classifier_activation="softmax")
+  
+ 
+    return model
+
+
+def model_ResNet50(_img_width, _img_height):
+    
+    model = tf.keras.applications.ResNet50(
+        include_top=False,
+        weights=None,
+        input_tensor=None,
+        input_shape=(_img_width,_img_height, 1),
+        pooling=None,
+        classes=2,
+        classifier_activation="softmax")
+ 
+    return model
+
+def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer):
+    
+    if _optimizer == 'Adam':
+        opt = Adam(learning_rate=_learning_rate)
+    else:
+        opt = SGD(learning_rate=_learning_rate)
+      
+    _model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
+    hist = _model.fit(_X_train, _y_train, validation_data=(_X_val, _y_val), batch_size=_batch_size, epochs=_epochs, verbose=False)
+    
+    ev = _model.evaluate(_X_test, _y_test, verbose=False)
+    
+    return ev
+    
+
+    
+def model_compiler(_models):
+    for m in _models:
+        m.compile(optimizer = Adam(learning_rate=0.1), loss='categorical_crossentropy', metrics=["accuracy"]) 
+                

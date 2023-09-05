@@ -16,14 +16,20 @@ import yaml
 import logging
 import keras
 from matplotlib import pyplot as plt
-
+from xgboost import XGBClassifier
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.metrics import classification_report
+from sklearn import metrics
+from scipy.stats import chi2_contingency
+from sklearn import tree
 
-
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
 
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -70,7 +76,7 @@ def train_using_gini(X_train, X_test, y_train):
   
     # Creating the classifier object
     clf_gini = DecisionTreeClassifier(criterion = "gini",
-            random_state = 100,max_depth=8, min_samples_leaf=5)
+            random_state = 100,max_depth=6, min_samples_leaf=5)
   
     # Performing training
     clf_gini.fit(X_train, y_train)
@@ -82,7 +88,7 @@ def tarin_using_entropy(X_train, X_test, y_train):
     # Decision tree with entropy
     clf_entropy = DecisionTreeClassifier(
             criterion = "entropy", random_state = 100,
-            max_depth = 8, min_samples_leaf = 5)
+            max_depth = 6, min_samples_leaf = 5)
   
     # Performing training
     clf_entropy.fit(X_train, y_train)
@@ -109,11 +115,62 @@ def cal_accuracy(y_test, y_pred):
       
     print("Report : ",
     classification_report(y_test, y_pred))
-  
-    
-df = d.load_data_file(BASE_FILE_PATH)
-len(df)        
 
+ 
+def chi2(_data):
+    stat, p, dof, expected = chi2_contingency(_data)
+    return p
+    
+def dec_tree(_data, _zmienne):
+    
+    X = _data.loc[:, _zmienne]
+    Y = _data.loc[:, ['rak']]
+        
+    df1 = _data[_data.label_cancer.isin(['PTC'])]
+    df2 = _data[_data.rak == 0]
+    df = pd.concat([df1,df2])
+    
+    X_train, X_test, y_train, y_test = train_test_split( X, Y, test_size = 0.2, random_state = 100)
+    
+    
+    clf_gini = train_using_gini(X_train, X_test, y_train)
+    clf_entropy = tarin_using_entropy(X_train, X_test, y_train)
+      
+    m1_pred = clf_gini.predict(X_test)
+
+
+    m1_pred_proba = clf_gini.predict_proba(X_test)[:,1]
+    roc_plot(y_test, m1_pred_proba)
+
+
+    print("Accuracy:",metrics.accuracy_score(y_test, m1_pred))
+
+    return clf_gini
+
+    # # Operational Phase
+    # print("Results Using Gini Index:")
+      
+    # # Prediction using gini
+    # y_pred_gini = prediction(X_test, clf_gini);
+    # cal_accuracy(y_test, y_pred_gini)
+      
+    # print("Results Using Entropy:")
+    # # Prediction using entropy
+    # y_pred_entropy = prediction(X_test, clf_entropy)
+    # cal_accuracy(y_test, y_pred_entropy)
+    
+
+def roc_plot(y_test, y_pred):
+  
+  m1_fpr, m1_tpr, _ = metrics.roc_curve(y_test,  y_pred)
+  m1_auc = metrics.roc_auc_score(y_test, y_pred)
+
+  plt.plot(m1_fpr,m1_tpr,label="model 1, auc="+str(round(m1_auc,2)))
+  plt.legend(loc=4)
+  plt.show()
+  
+  
+df = d.load_data_file(BASE_FILE_PATH)
 
 zmienne = ['echo_nieznacznie hipo', 'echo_gleboko hipo', 'echo_hiperechogeniczna',
 'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
@@ -128,29 +185,34 @@ zmienne = ['echo_nieznacznie hipo', 'echo_gleboko hipo', 'echo_hiperechogeniczna
 'unaczynienie_centralne', 'unaczynienie_mieszane', 
 'wezly_chlonne_patologiczne']
 
-
-df = df.fillna(0)
-X = df.loc[:, zmienne]
-Y = df.loc[:, ['rak']]
-
-df1 = df[df.label_cancer.isin(['PTC'])]
-df2 = df[df.rak == 0]
-df = pd.concat([df1,df2])
-
-X_train, X_test, y_train, y_test = train_test_split( X, Y, test_size = 0.3, random_state = 100)
+df[zmienne] = df[zmienne].astype(int)
 
 
-clf_gini = train_using_gini(X_train, X_test, y_train)
-clf_entropy = tarin_using_entropy(X_train, X_test, y_train)
+for z in zmienne:
+    contigency= pd.crosstab(df['rak'], df[z])
+    p_val = chi2(contigency)
+    if p_val < 0.05:
+        print(z)
+        print(contigency)
+
+
+m1 = dec_tree(df, zmienne)
+
+X = df[zmienne] # zmienne objaśniające
+Y = df.rak # zmienna objaśniana
+aucs = []
+iters = []
+_iters = 100
+for i in range(0, _iters):
   
-# Operational Phase
-print("Results Using Gini Index:")
+  x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.25)
+  m1 =DecisionTreeClassifier(criterion = "gini", max_depth=6, min_samples_leaf=5)
+  m1.fit(x_train, y_train)
+
+  m1_pred = m1.predict(x_test)
+  m1_pred_proba = m1.predict_proba(x_test)[:,1]
+  m1_auc = roc_auc_score(y_test, m1_pred_proba)
+  aucs.append(m1_auc)
+  iters.append(i)
+
   
-# Prediction using gini
-y_pred_gini = prediction(X_test, clf_gini);
-cal_accuracy(y_test, y_pred_gini)
-  
-print("Results Using Entropy:")
-# Prediction using entropy
-y_pred_entropy = prediction(X_test, clf_entropy)
-cal_accuracy(y_test, y_pred_entropy)

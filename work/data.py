@@ -9,6 +9,7 @@ import random
 import shutil
 import utils.image_manipulator as im
 import fnmatch
+import np_utils
 
 
 def augment(_dataset):
@@ -41,10 +42,10 @@ def resize_images(_input_path, _output_path, _width, _heigt):
             res = res + 1
     return res
 
-def split_files(_source_path, _train_path, _test_path, _test_ratio):
+def split_files(_source_path, _train_path, _val_path, _test_path, _val_ratio, _test_ratio):
 
     
-    paths = [_train_path, _test_path]
+    paths = [_train_path, _test_path, _val_path]
     for p in paths:
         isExist = os.path.exists(p)
         if not isExist:
@@ -60,8 +61,13 @@ def split_files(_source_path, _train_path, _test_path, _test_ratio):
        if os.path.isfile(file_path):
          os.remove(file_path)
          
+    for f in os.listdir(_val_path):
+       file_path = os.path.join(_val_path, f)
+       if os.path.isfile(file_path):
+         os.remove(file_path)
+         
     number_of_test_files = int(np.round(_test_ratio * len(fnmatch.filter(os.listdir(_source_path), '*.png'))))
-
+   
     test_list = []
     for i in range(number_of_test_files):
         random_file = random.choice(os.listdir(_source_path))
@@ -69,11 +75,21 @@ def split_files(_source_path, _train_path, _test_path, _test_ratio):
         if filename.endswith(".png"): 
             shutil.copy(_source_path + random_file, _test_path + random_file)
             test_list.append(filename)
+               
+    number_of_val_files = int(np.round(_val_ratio * len(fnmatch.filter(os.listdir(_source_path), '*.png'))))
+           
+    val_list = []
+    for i in range(number_of_val_files):
+        random_file = random.choice(os.listdir(_source_path))
+        filename = os.fsdecode(random_file)
+        if filename.endswith(".png"): 
+            shutil.copy(_source_path + random_file, _val_path + random_file)
+            val_list.append(filename)
        
     for f in os.listdir(_source_path):
         filename = os.fsdecode(f)
         if filename.endswith(".png"): 
-            if not filename in test_list:
+            if (not filename in val_list) and (not filename in test_list):
                 shutil.copy(_source_path + f, _train_path + f)
         
 
@@ -189,10 +205,12 @@ def label_cancer (row):
 def load_data_file(_data_file):
     df = pd.read_csv(_data_file, sep=';')
     df['label_cancer'] = df.apply (lambda row: label_cancer(row), axis=1)
+    df = df.fillna(0)
 
     return df
+
     
-def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _cancer_filter):
+def split_data(_data_file, _train_path, _val_path, _test_path, _augument, _cancer_filter):
     
     df = load_data_file(_data_file)
 
@@ -203,6 +221,8 @@ def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _canc
       
     X_train = []     
     y_train = []
+    X_val = []     
+    y_val = []
     X_test = []     
     y_test = []
     
@@ -214,7 +234,6 @@ def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _canc
             rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
             y_train.append(rak)
             X_train.append(np.array(cv2.imread(_train_path + f, cv2.IMREAD_GRAYSCALE)))
-
     
     if _augument > 0:
         X_train_tmp = X_train
@@ -228,20 +247,16 @@ def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _canc
         X_train = X_train_tmp
         y_train = y_train_tmp
         
+    for f in os.listdir(_val_path):
+        f_slit = f.split('_')
+        id_coi = f_slit[6]
+        if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
+            rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
+            y_val.append(rak)
+            #X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)).astype(np.float32))
+            X_val.append(np.array(cv2.imread(_val_path + f, cv2.IMREAD_GRAYSCALE)))
     
-    train_size = len(X_train)
-    im_width = X_train[0].shape[0]
-    im_height = X_train[0].shape[1]
-        
-    X_train = np.array(X_train)
-    y_train = np.array(y_train)
-    
-    tmp_mean = np.mean(X_train)
-    tmp_std = np.std(X_train)
-    if _normalize:
-        X_train = (X_train-tmp_mean)/tmp_std
-    
-    
+
     for f in os.listdir(_test_path):
         f_slit = f.split('_')
         id_coi = f_slit[6]
@@ -251,36 +266,46 @@ def split_data(_data_file, _train_path, _test_path, _augument, _normalize, _canc
             #X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)).astype(np.float32))
             X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)))
     
-    if _augument > 0:
-        X_test_tmp = X_test
-        y_test_tmp = y_test
         
-        for i in range(0, _augument):
-            X_test_augumented = augment(X_test)
-            X_test_tmp = X_test_tmp + X_test_augumented
-            y_test_tmp = y_test_tmp + y_test
-            
-        X_test = X_test_tmp
-        y_test = y_test_tmp
-        
+    train_size = len(X_train)
     test_size = len(X_test)
-      
+    val_size = len(X_val)
+     
+    X_train = np.array(X_train)
+    y_train = np.array(y_train)
+    
     X_test = np.array(X_test)
     y_test = np.array(y_test)
     
-    tmp_mean = np.mean(X_test)
-    tmp_std = np.std(X_test)
-    if _normalize:
-        X_test = (X_test-tmp_mean)/tmp_std
+    X_val = np.array(X_val)
+    y_val = np.array(y_val)
+   
     
+    im_width = X_train[0].shape[0]
+    im_height = X_train[0].shape[1]
     X_train = X_train.reshape(train_size,im_width,im_height,1)
+    X_val = X_val.reshape(val_size,im_width,im_height,1)
     X_test = X_test.reshape(test_size,im_width,im_height,1)
     
-    y_train = to_categorical(y_train)
-    y_test = to_categorical(y_test)
+    
+    X_train = X_train.astype('float32')
+    X_val = X_val.astype('float32')
+    X_test = X_test.astype('float32')
+    
+    X_train /= 255
+    X_val /= 255
+    X_test /= 255
+    
+    nb_classes = 2
+    y_train = to_categorical(y_train, nb_classes)
+    y_val = to_categorical(y_val, nb_classes)
+    y_test = to_categorical(y_test, nb_classes)
+    
+    print(len(X_train), X_train.shape) 
+    print(len(X_val), X_val.shape) 
+    print(len(X_test), X_test.shape)
 
-
-    return X_train, y_train, X_test, y_test        
+    return X_train, y_train, X_val, y_val, X_test, y_test        
                     
 
 

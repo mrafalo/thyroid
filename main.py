@@ -20,7 +20,12 @@ import random
 import wandb
 import copy
 from wandb.keras import WandbMetricsLogger
+from datetime import timedelta
 
+from hyperopt import Trials, STATUS_OK, tpe
+from hyperas import optim
+from hyperas.distributions import choice, uniform
+import timeit
 
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -42,7 +47,9 @@ logger.addHandler(ch)
 
  
 BASE_FILE_PATH = BASE_PATH + 'baza5.csv'
+
 TRAIN_PATH = BASE_PATH + 'modeling/all_images/train/'
+VAL_PATH = BASE_PATH + 'modeling/all_images/validation/'
 TEST_PATH = BASE_PATH + 'modeling/all_images/test/'
 
 TRAIN_PATH_BW = BASE_PATH + 'modeling/all_images_bw/train/'
@@ -63,6 +70,7 @@ TEST_PATH_FELZEN = BASE_PATH + 'modeling/all_images_felzen/test/'
 BATCH_SIZE = 12
 EPOCHS = 100
 BASE_LR = 0.001#1e-6
+VERBOSE_FLAG = False
 
 
 def train_model(_x_train, _y_train, _x_test, _y_test, _epochs):
@@ -89,14 +97,29 @@ def reinitialize(model):
         if hasattr(l,"recurrent_initializer"):
             l.recurrent_kernel.assign(l.recurrent_initializer(tf.shape(l.recurrent_kernel)))
             
+def get_config():
+    res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
+    learning_rates = [0.1, 0.01, 0.001]
+    batch_sizes = [8, 16, 32]
+    optimizers = ['Adam', 'SDG']
+    
+    for l in learning_rates:
+        for b in batch_sizes:
+            for o in optimizers:        
+                new_row = {'learning_rate':l, 'batch_size':b, 'optimizer':o}
+                res = res.append(new_row, ignore_index=True)
+                
+    return res
+
             
-def train_model_multi_cv(_epochs, _iters, _filter="none", _cancer_filter = 'none'):
+def train_model_multi_cv(_epochs, _iters, _filter="none", _cancer_filter='none'):
     
     
     if _filter == "none": 
         INPUT_PATH = BASE_PATH + 'modeling/all_images/'
         OUTPUT_TEST_PATH = TEST_PATH
         OUTPUT_TRAIN_PATH = TRAIN_PATH
+        OUTPUT_VAL_PATH = VAL_PATH
     if _filter == "canny":
         INPUT_PATH = BASE_PATH + 'modeling/all_images_canny/'
         OUTPUT_TEST_PATH = TEST_PATH_CANNY
@@ -117,100 +140,76 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _cancer_filter = 'none
         INPUT_PATH = BASE_PATH + 'modeling/all_images_felzen/'
         OUTPUT_TEST_PATH = TEST_PATH_FELZEN
         OUTPUT_TRAIN_PATH = TRAIN_PATH_FELZEN
+
     
-    accuracies = []
-    cancer_ratios_train = []
-    cancer_ratios_test = []
-    model_nums = []
-    iter_nums = []
-    train_dataset_sizes = []
-    test_dataset_sizes = []
-    filters = []
-    cancer_filters = []
-    
-    models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+    models = m.model_sequence_manual_3(IMG_WIDTH, IMG_HEIGHT)
     model_cnt = len(models)
     
-    logger.info('processing start... ' + 'model: ' + str(model_cnt) + ' cv iters: ' + str(_iters) + ' filter: ' + str(_filter))
+    logger.info('processing start... ' + 'models: ' + str(model_cnt) + ' cv iters: ' + str(_iters) + ' filter: ' + str(_filter))
     
-    
+    config = get_config()
+            
     for i in range(_iters):
-        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_TEST_PATH, 0.15)
-        X_train, y_train, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_TEST_PATH, 0, True, _cancer_filter)
-
-        for m_num in range(model_cnt):
-            
-            accuracies = []
-            cancer_ratios_train = []
-            cancer_ratios_test = []
-            model_nums = []
-            iter_nums = []
-            train_dataset_sizes = []
-            test_dataset_sizes = []
-            filters = []
-            cancer_filters = []
-    
-            #logger.info('model: ' + str(m_num+1)  + "/" + str(model_cnt) +' iteration: ' + str(i+1) + "/" + str(_iters))
-            models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
-            m1 = models[m_num]
-            
-            keras.backend.clear_session()
-                    
-          
-            #logger.info('iteration: ' + str(i+1) + "/" + str(_iters))
-            m1.compile(optimizer = Adam(learning_rate=BASE_LR), loss='categorical_crossentropy', metrics=["accuracy"]) 
-            hist = m1.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=BATCH_SIZE, epochs=_epochs, verbose=False)
-            
-            
-            ev = m1.evaluate(X_test, y_test, verbose=False)
-             
-            accuracies.append(round(ev[1], 2))
-            cancer_ratios_train.append(round(sum(y_train[:,1])/len(y_train[:,1]),2))
-            cancer_ratios_test.append(round(sum(y_test[:,1])/len(y_test[:,1]),2))
-            
-            train_dataset_sizes.append(len(y_test))
-            test_dataset_sizes.append(len(y_train))
-            filters.append(_filter)
-            
-            model_nums.append(m_num)
-            iter_nums.append(i+1)
-            cancer_filters.append(_cancer_filter)
-            
-            histories = pd.DataFrame(list(zip(cancer_filters, filters, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test,accuracies, train_dataset_sizes, test_dataset_sizes)), 
-                                     columns =["cancer_filters", "filter", "model_nums", "iter_nums", "cancer_ratios_train", "cancer_ratios_test","accuracies", "train_dataset_sizes", "test_dataset_sizes"])
-            
-            histories.to_csv('results.csv', mode='a', header=False, index=False)
-            
-           
-            logger.info('model: ' + str(m_num+1)  + "/" + str(model_cnt) +' iter: ' + str(i+1) + "/" + str(_iters) + " accuracy = "  + str(round(ev[1], 2)))
         
+        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0.15, 0.15)
+                
+        X_train, y_train, X_val, y_val, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0, _cancer_filter)
+        
+        for idx, c in config.iterrows():
+            
+            for m_num in range(model_cnt):
+                
+                start = timeit.default_timer()
+                models = m.model_sequence_manual_3(IMG_WIDTH, IMG_HEIGHT)
+                m1 = models[m_num]
+                
+                keras.backend.clear_session()
+                
+                ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer']);
+                            
+                
+                stop = timeit.default_timer()
+
+                elapsed = timedelta(minutes=stop-start)
+
+                histories = pd.DataFrame(columns =["model_num", "iter_num", "cancer_filter", "filter",  "cancer_ratio_train", 
+                                                   "cancer_ratio_test","accuracy", "train_dataset_size", "test_dataset_size",
+                                                   "learning_rate", "batch_size", "optimizer", "elapsed"])
+                new_row = {'model_num':m_num+1,
+                           'iter_num':i+1,
+                           'cancer_filter':_cancer_filter, 
+                           'filter':_filter, 
+                           'cancer_ratio_train':round(sum(y_train[:,1])/len(y_train[:,1]),2),
+                           'cancer_ratio_test':round(sum(y_test[:,1])/len(y_test[:,1]),2),
+                           'accuracy': round(ev[1], 2),
+                           'train_dataset_size':len(y_test),
+                           'test_dataset_size':len(y_train),
+                           'learning_rate':c['learning_rate'],
+                           'batch_size':c['batch_size'],
+                           'optimizer':c['optimizer'],
+                           'elapsed': elapsed.seconds//3600}
     
+                histories = histories.append(new_row, ignore_index=True)
+                histories.to_csv('results.csv', mode='a', header=False, index=False)
+                         
+                logger.info(new_row)
+            
+        
     return 1
 
 
 def main_loop(_epochs, _iters):
     logger.info("starting...")
-    tf.keras.utils.set_random_seed(123)
+    
     random.seed(123)
     np.random.seed(123)
+    tf.keras.utils.set_random_seed(123)
     
     f = open('results.csv','w') 
-    f.write("cancer_filters, filter, model_nums, iter_nums, cancer_ratios_train, cancer_ratios_test, accuracies, train_dataset_sizes,test_dataset_sizes\n")
+    f.write("model_num, iter_num, cancer_filter, filter,  cancer_ratio_train, cancer_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed\n")
     f.close()
     
     hist = train_model_multi_cv(_epochs, _iters, 'none', ['PTC'])
-    hist = train_model_multi_cv(_epochs, _iters, 'bw', ['PTC'])
-    #hist = train_model_multi_cv(_epochs, _iters, 'heat', ['PTC'])
-    # hist = train_model_multi_cv(_epochs, _iters, 'canny', ['PTC'])
-    # hist = train_model_multi_cv(_epochs, _iters, 'felzen', ['PTC'])
-    # hist = train_model_multi_cv(_epochs, _iters, 'sobel', ['PTC'])
-    
-    # hist = train_model_multi_cv(_epochs, _iters, 'none', 'none')
-    # hist = train_model_multi_cv(_epochs, _iters, 'bw', 'none')
-    # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'none')
-    # hist = train_model_multi_cv(_epochs, _iters, 'canny', 'none')
-    # hist = train_model_multi_cv(_epochs, _iters, 'felzen', 'none')
-    # hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'none')
     
     logger.info("training finished!")
     
@@ -219,5 +218,6 @@ def main_loop(_epochs, _iters):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop(20,5)
+main_loop(20,3)
+
 
