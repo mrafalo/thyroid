@@ -25,11 +25,14 @@ from sklearn.metrics import classification_report
 from sklearn import metrics
 from scipy.stats import chi2_contingency
 from sklearn import tree
-
+from sklearn.ensemble import RandomForestClassifier
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+from xgboost import XGBClassifier
+from sklearn import tree
 
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -49,116 +52,18 @@ if (logger.hasHandlers()):
   
 logger.addHandler(ch)
 
-BASE_FILE_PATH = BASE_PATH + 'baza5.csv'
+BASE_FILE_PATH = BASE_PATH + 'baza6.csv'
 
-df = pd.read_csv(BASE_FILE_PATH, sep=';')
 
-def label_cancer (row):
-   if row['HP_PTC'] == 1 :
-      return 'PTC'
-   if row['HP_FTC'] == 1 :
-      return 'FTC'
-   if row['HP_Hurthlea'] == 1:
-      return 'HURTHLEA'
-   if row['HP_MTC']  == 1:
-      return 'MTC'
-   if row['HP_DOBRZE_ZROZNICOWANE'] == 1:
-      return 'DOBRZE_ZROZNICOWANY'
-   if row['HP_ANA'] == 1:
-      return 'ANAPLASTYCZNY'
-   if row['HP_PLASKO'] == 1:
-      return 'PLASKONABLONKOWY'
-   else:
-    return 'BENIGN'
-
-# Function to perform training with giniIndex.
-def train_using_gini(X_train, X_test, y_train):
-  
-    # Creating the classifier object
-    clf_gini = DecisionTreeClassifier(criterion = "gini",
-            random_state = 100,max_depth=6, min_samples_leaf=5)
-  
-    # Performing training
-    clf_gini.fit(X_train, y_train)
-    return clf_gini
-      
-# Function to perform training with entropy.
-def tarin_using_entropy(X_train, X_test, y_train):
-  
-    # Decision tree with entropy
-    clf_entropy = DecisionTreeClassifier(
-            criterion = "entropy", random_state = 100,
-            max_depth = 6, min_samples_leaf = 5)
-  
-    # Performing training
-    clf_entropy.fit(X_train, y_train)
-    return clf_entropy
-  
-  
-# Function to make predictions
-def prediction(X_test, clf_object):
-  
-    # Predicton on test with giniIndex
-    y_pred = clf_object.predict(X_test)
-    print("Predicted values:")
-    print(y_pred)
-    return y_pred
-      
-# Function to calculate accuracy
-def cal_accuracy(y_test, y_pred):
-      
-    #print("Confusion Matrix: ",
-    #confusion_matrix(y_test, y_pred))
-      
-    print ("Accuracy : ",
-    accuracy_score(y_test,y_pred)*100)
-      
-    print("Report : ",
-    classification_report(y_test, y_pred))
-
- 
 def chi2(_data):
     stat, p, dof, expected = chi2_contingency(_data)
+    
+    if p_val < 0.05:
+        print(z, round(p_val,3))
+        print(contigency)
+        print("--------------------")
     return p
-    
-def dec_tree(_data, _zmienne):
-    
-    X = _data.loc[:, _zmienne]
-    Y = _data.loc[:, ['rak']]
-        
-    df1 = _data[_data.label_cancer.isin(['PTC'])]
-    df2 = _data[_data.rak == 0]
-    df = pd.concat([df1,df2])
-    
-    X_train, X_test, y_train, y_test = train_test_split( X, Y, test_size = 0.2, random_state = 100)
-    
-    
-    clf_gini = train_using_gini(X_train, X_test, y_train)
-    clf_entropy = tarin_using_entropy(X_train, X_test, y_train)
       
-    m1_pred = clf_gini.predict(X_test)
-
-
-    m1_pred_proba = clf_gini.predict_proba(X_test)[:,1]
-    roc_plot(y_test, m1_pred_proba)
-
-
-    print("Accuracy:",metrics.accuracy_score(y_test, m1_pred))
-
-    return clf_gini
-
-    # # Operational Phase
-    # print("Results Using Gini Index:")
-      
-    # # Prediction using gini
-    # y_pred_gini = prediction(X_test, clf_gini);
-    # cal_accuracy(y_test, y_pred_gini)
-      
-    # print("Results Using Entropy:")
-    # # Prediction using entropy
-    # y_pred_entropy = prediction(X_test, clf_entropy)
-    # cal_accuracy(y_test, y_pred_entropy)
-    
 
 def roc_plot(y_test, y_pred):
   
@@ -169,50 +74,195 @@ def roc_plot(y_test, y_pred):
   plt.legend(loc=4)
   plt.show()
   
-  
-df = d.load_data_file(BASE_FILE_PATH)
 
-zmienne = ['echo_nieznacznie hipo', 'echo_gleboko hipo', 'echo_hiperechogeniczna',
-'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
-'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',
-'ksztalt_okragly', 'ksztalt_nieregularny', 'orientacja_rownolegla',
-'granice_rowne', 'granice_zatarte', 'granice_nierowne', 'brzegi_katowe',
-'brzegi_mikrolobularne', 'brzegi_spikularne', 'halo', 'halo_cienka',
-'halo_gruba ', 'Zwapnienia_mikrozwapnienia',
-'Zwapnienia_makrozwapnienia', 'Zwapnienia_makro_obrączkowate',
-'Zwapnienia_artefakty_typu_ogona_komety', 'torbka_modelowanie',
-'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
-'unaczynienie_centralne', 'unaczynienie_mieszane', 
-'wezly_chlonne_patologiczne']
+def decision_tree_cv_ptc(_data, _iters, _zmienne):
+    
+    df1 = _data[_data.label_cancer.isin(['PTC'])]
+    df2 = _data[_data.rak == 0]
+    df = pd.concat([df1,df2])
+    
+    X = df[_zmienne] # zmienne objaśniające
+    y = df.rak # zmienna objaśniana
+    
+    np.random.seed(123)
+    
+    for i in range(0, _iters):
+       x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+       
+       m1 = DecisionTreeClassifier(criterion = "gini",max_depth=4, min_samples_leaf=5)
+       m1 = m1.fit(x_train,y_train)
+       m1_pred_proba = m1.predict_proba(x_test)[:,1]
+       m1_auc = roc_auc_score(y_test, m1_pred_proba)
+       m1_fpr, m1_tpr, t = metrics.roc_curve(y_test,  m1_pred_proba)
+       m1_optimal_idx = np.argmax(m1_tpr - m1_fpr)
+       m1_optimal_threshold = t[m1_optimal_idx]
+       m1_pred_proba[m1_pred_proba < m1_optimal_threshold] = 0
+       m1_pred_proba[m1_pred_proba >= m1_optimal_threshold] = 1
+       m1_recall = accuracy_score(y_test, m1_pred_proba)
+       
+       print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2))
+      
+    return m1
 
-df[zmienne] = df[zmienne].astype(int)
+def random_forest_cv_ptc(_data, _iters, _zmienne):
+    
+    df1 = _data[_data.label_cancer.isin(['PTC'])]
+    df2 = _data[_data.rak == 0]
+    df = pd.concat([df1,df2])
+    
+    X = df[_zmienne] # zmienne objaśniające
+    y = df.rak # zmienna objaśniana
+    
+    np.random.seed(123)
+
+    for i in range(0, _iters):
+      x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+      
+      m1 = RandomForestClassifier()
+      m1 = m1.fit(x_train,y_train)
+      m1_pred_proba = m1.predict_proba(x_test)[:,1]
+      m1_auc = roc_auc_score(y_test, m1_pred_proba)
+      m1_fpr, m1_tpr, t = metrics.roc_curve(y_test,  m1_pred_proba)
+      m1_optimal_idx = np.argmax(m1_tpr - m1_fpr)
+      m1_optimal_threshold = t[m1_optimal_idx]
+      m1_pred_proba[m1_pred_proba < m1_optimal_threshold] = 0
+      m1_pred_proba[m1_pred_proba >= m1_optimal_threshold] = 1
+      m1_recall = accuracy_score(y_test, m1_pred_proba)
+      
+      
+      m2 = XGBClassifier()
+      m2 = m1.fit(x_train,y_train)
+      m2_pred_proba = m2.predict_proba(x_test)[:,1]
+      m2_auc = roc_auc_score(y_test, m2_pred_proba)
+      m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
+      m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
+      m2_optimal_threshold = t[m2_optimal_idx]
+      m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
+      m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
+      m2_recall = accuracy_score(y_test, m2_pred_proba)
+      
+      print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2), 'XGB: recall =', round(m2_recall,2), " auc =", round(m2_auc,2))
 
 
-for z in zmienne:
-    contigency= pd.crosstab(df['rak'], df[z])
-    p_val = chi2(contigency)
-    if p_val < 0.05:
-        print(z)
-        print(contigency)
+def random_forest_cv_rak(_data, _iters, _zmienne):
+    
+    X = _data[_zmienne] # zmienne objaśniające
+    y = _data.rak # zmienna objaśniana
+    
+    np.random.seed(123)
+
+    for i in range(0, _iters):
+      x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+      
+      m1 = RandomForestClassifier()
+      m1 = m1.fit(x_train,y_train)
+      m1_pred_proba = m1.predict_proba(x_test)[:,1]
+      m1_auc = roc_auc_score(y_test, m1_pred_proba)
+      m1_fpr, m1_tpr, t = metrics.roc_curve(y_test,  m1_pred_proba)
+      m1_optimal_idx = np.argmax(m1_tpr - m1_fpr)
+      m1_optimal_threshold = t[m1_optimal_idx]
+      m1_pred_proba[m1_pred_proba < m1_optimal_threshold] = 0
+      m1_pred_proba[m1_pred_proba >= m1_optimal_threshold] = 1
+      m1_recall = accuracy_score(y_test, m1_pred_proba)
+      
+      
+      m2 = XGBClassifier()
+      m2 = m1.fit(x_train,y_train)
+      m2_pred_proba = m2.predict_proba(x_test)[:,1]
+      m2_auc = roc_auc_score(y_test, m2_pred_proba)
+      m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
+      m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
+      m2_optimal_threshold = t[m2_optimal_idx]
+      m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
+      m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
+      m2_recall = accuracy_score(y_test, m2_pred_proba)
+      
+      print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2), 'XGB: recall =', round(m2_recall,2), " auc =", round(m2_auc,2))
 
 
-m1 = dec_tree(df, zmienne)
+def report_variables_vs_typ_raka():
+    df = d.load_data_file(BASE_FILE_PATH)
 
-X = df[zmienne] # zmienne objaśniające
-Y = df.rak # zmienna objaśniana
-aucs = []
-iters = []
-_iters = 100
-for i in range(0, _iters):
-  
-  x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.25)
-  m1 =DecisionTreeClassifier(criterion = "gini", max_depth=6, min_samples_leaf=5)
-  m1.fit(x_train, y_train)
+    zmienne = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
+    'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
+    'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',
+    'ksztalt_okragly', 'ksztalt_nieregularny', 'orientacja_rownolegla',
+    'granice_rowne', 'granice_zatarte', 'granice_nierowne', 'brzegi_katowe',
+    'brzegi_mikrolobularne', 'brzegi_spikularne', 'halo', 'halo_cienka',
+    'halo_gruba ', 'Zwapnienia_mikrozwapnienia',
+    'Zwapnienia_makrozwapnienia', 'Zwapnienia_makro_obrączkowate',
+    'Zwapnienia_artefakty_typu_ogona_komety', 'torbka_modelowanie',
+    'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
+    'unaczynienie_centralne', 'unaczynienie_mieszane', 'USG_AZT',
+    'wezly_chlonne_patologiczne',
+    'lokalizacja_prawy_plat', 'lokalizacja_lewy_plat', 'lokalizacja_ciesn']
+    
+    for z in zmienne:
+       
+        tmp = df.loc[df[z]>=0,]
+        contigency= pd.crosstab(tmp['label_cancer'], tmp[z])
+        p_val = chi2(contigency)
 
-  m1_pred = m1.predict(x_test)
-  m1_pred_proba = m1.predict_proba(x_test)[:,1]
-  m1_auc = roc_auc_score(y_test, m1_pred_proba)
-  aucs.append(m1_auc)
-  iters.append(i)
 
-  
+def report_variables_vs_nieokreslone():
+    df = d.load_data_file(BASE_FILE_PATH)
+
+    zmienne = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
+    'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
+    'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',
+    'ksztalt_okragly', 'ksztalt_nieregularny', 'orientacja_rownolegla',
+    'granice_rowne', 'granice_zatarte', 'granice_nierowne', 'brzegi_katowe',
+    'brzegi_mikrolobularne', 'brzegi_spikularne', 'halo', 'halo_cienka',
+    'halo_gruba ', 'Zwapnienia_mikrozwapnienia',
+    'Zwapnienia_makrozwapnienia', 'Zwapnienia_makro_obrączkowate',
+    'Zwapnienia_artefakty_typu_ogona_komety', 'torbka_modelowanie',
+    'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
+    'unaczynienie_centralne', 'unaczynienie_mieszane', 'USG_AZT',
+    'wezly_chlonne_patologiczne',
+    'lokalizacja_prawy_plat', 'lokalizacja_lewy_plat', 'lokalizacja_ciesn']
+    
+    for z in zmienne:
+       
+        tmp = df.loc[df[z]>=0,]
+        contigency= pd.crosstab(tmp['HP_NIEOKRESLONE'], tmp[z])
+        p_val = chi2(contigency)
+
+
+def report_variables_vs_PTC():
+    df = d.load_data_file(BASE_FILE_PATH)
+
+    zmienne = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
+    'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
+    'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',
+    'ksztalt_okragly', 'ksztalt_nieregularny', 'orientacja_rownolegla',
+    'granice_rowne', 'granice_zatarte', 'granice_nierowne', 'brzegi_katowe',
+    'brzegi_mikrolobularne', 'brzegi_spikularne', 'halo', 'halo_cienka',
+    'halo_gruba ', 'Zwapnienia_mikrozwapnienia',
+    'Zwapnienia_makrozwapnienia', 'Zwapnienia_makro_obrączkowate',
+    'Zwapnienia_artefakty_typu_ogona_komety', 'torbka_modelowanie',
+    'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
+    'unaczynienie_centralne', 'unaczynienie_mieszane', 'USG_AZT',
+    'wezly_chlonne_patologiczne',
+    'lokalizacja_prawy_plat', 'lokalizacja_lewy_plat', 'lokalizacja_ciesn']
+    
+    for z in zmienne:
+       
+        tmp = df.loc[df[z]>=0,]
+        contigency= pd.crosstab(tmp['HP_PTC'], tmp[z])
+        p_val = chi2(contigency)
+
+            
+report_variables_vs_nieokreslone()
+
+# m1 = decision_tree_cv_ptc(df, 10, zmienne)
+# print('---')
+# random_forest_cv_ptc(df, 10, zmienne)
+# print('---')
+# random_forest_cv_rak(df, 10, zmienne)
+# plt.figure(figsize=(12,12)) 
+# tree.plot_tree(m1,
+#            feature_names = zmienne, 
+#            class_names=['0', '1'],
+#            fontsize=12,
+#            filled = True);
+

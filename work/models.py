@@ -371,22 +371,24 @@ def model_sequence_manual_1(_img_width, _img_height):
 
 def model_sequence_manual_2(_img_width, _img_height):
     models = []
+    names = ['VGG16', 'VGG19', 'ResNet50', 'denseNet201', 
+             'denseNet121', 'cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7']
                
+
+    models.append(model_VGG16(_img_width, _img_height))
+    models.append(model_VGG19(_img_width, _img_height))
+    #models.append(model_ResNet50(_img_width, _img_height))
+    models.append(model_densenet201(_img_width, _img_height))
+    models.append(model_densenet121(_img_width, _img_height))
     models.append(model_cnn1(_img_width, _img_height))
     models.append(model_cnn2(_img_width, _img_height))
     models.append(model_cnn3(_img_width, _img_height))
     models.append(model_cnn4(_img_width, _img_height))
     models.append(model_cnn5(_img_width, _img_height))
     models.append(model_cnn6(_img_width, _img_height))
-    models.append(model_cnn7(_img_width, _img_height))
-    models.append(model_VGG16(_img_width, _img_height))
-    models.append(model_VGG19(_img_width, _img_height))
-    models.append(model_ResNet50(_img_width, _img_height))
-    models.append(model_densenet201(_img_width, _img_height))
-    models.append(model_densenet121(_img_width, _img_height))
+    models.append(model_cnn7(_img_width, _img_height))      
         
-        
-    return models
+    return names, models
 
 
 def model_sequence_manual_3(_img_width, _img_height):
@@ -472,6 +474,11 @@ def model_ResNet50(_img_width, _img_height):
     return model
 
 def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer):
+    
+    # print('_batch_size:',_batch_size)
+    # print(len(_X_train), _X_train.shape) 
+    # print(len(_X_val), _X_val.shape) 
+    # print(len(_X_test), _X_test.shape)
     
     if _optimizer == 'Adam':
         opt = Adam(learning_rate=_learning_rate)

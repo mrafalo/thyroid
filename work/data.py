@@ -205,19 +205,47 @@ def label_cancer (row):
 def load_data_file(_data_file):
     df = pd.read_csv(_data_file, sep=';')
     df['label_cancer'] = df.apply (lambda row: label_cancer(row), axis=1)
-    df = df.fillna(0)
+    
+    
+    zmienne = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
+    'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
+    'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',
+    'ksztalt_okragly', 'ksztalt_nieregularny', 'orientacja_rownolegla',
+    'granice_rowne', 'granice_zatarte', 'granice_nierowne', 'brzegi_katowe',
+    'brzegi_mikrolobularne', 'brzegi_spikularne', 'halo', 'halo_cienka',
+    'halo_gruba ', 'Zwapnienia_mikrozwapnienia',
+    'Zwapnienia_makrozwapnienia', 'Zwapnienia_makro_obrączkowate',
+    'Zwapnienia_artefakty_typu_ogona_komety', 'torbka_modelowanie',
+    'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
+    'unaczynienie_centralne', 'unaczynienie_mieszane', 'USG_AZT',
+    'wezly_chlonne_patologiczne',
+    'lokalizacja_prawy_plat', 'lokalizacja_lewy_plat', 'lokalizacja_ciesn',
+    'HP_PTC', 'HP_FTC', 'HP_Hurthlea', 'HP_MTC', 'HP_DOBRZE_ZROZNICOWANE', 'HP_ANA', 'HP_PLASKO',	
+    'HP_RUCZOLAK', 'HP_GUZEK_ROZROSTOWY', 'HP_ZAPALENIE', 'HP_NIEOKRESLONE', 'HP_NIFTP', 'HP_WDUMP','HP_FTUMP',
+    'rak']
+    
+    
+    df = df.fillna(-1)
+    df[zmienne] = df[zmienne].astype(int)
+
+    df.loc[df.BACC_2==1, 'BACC_Bethesda']='kat2'
+    df.loc[df.BACC_3==1, 'BACC_Bethesda']='kat3'
+    df.loc[df.BACC_4==1, 'BACC_Bethesda']='kat4'
+    df.loc[df.BACC_5==1, 'BACC_Bethesda']='kat5'
+    df.loc[df.BACC_6==1, 'BACC_Bethesda']='kat6'
+
+    
 
     return df
 
     
-def split_data(_data_file, _train_path, _val_path, _test_path, _augument, _cancer_filter):
+def split_data(_data_file, _train_path, _val_path, _test_path, _augument):
     
     df = load_data_file(_data_file)
 
-    if _cancer_filter !='none':
-        df1 = df[df.label_cancer.isin(_cancer_filter)]
-        df2 = df[df.rak == 0]
-        df = pd.concat([df1,df2])
+    df1 = df[df.label_cancer.isin(['PTC'])]
+    df2 = df[df.rak == 0]
+    df = pd.concat([df1,df2])
       
     X_train = []     
     y_train = []
@@ -253,7 +281,6 @@ def split_data(_data_file, _train_path, _val_path, _test_path, _augument, _cance
         if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
             rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
             y_val.append(rak)
-            #X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)).astype(np.float32))
             X_val.append(np.array(cv2.imread(_val_path + f, cv2.IMREAD_GRAYSCALE)))
     
 
@@ -263,7 +290,6 @@ def split_data(_data_file, _train_path, _val_path, _test_path, _augument, _cance
         if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
             rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
             y_test.append(rak)
-            #X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)).astype(np.float32))
             X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)))
     
         
