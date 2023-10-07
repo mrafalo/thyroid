@@ -340,44 +340,23 @@ def model_sequence_auto(_img_width, _img_height):
 
 def model_sequence_manual_1(_img_width, _img_height):
     models = []
-    conv_filter_sizes = [(2,2), (3,3)]    
-    pool_filter_sizes = [(1,1), (2,2), (3,3)]   
-    conv_sizes = [2, 4, 6]
-    conv_filters = [8, 16, 24, 32, 48]
-    
-    for conv_filter in conv_filters:
-        for conv_size in conv_sizes:
-            for conv_filter_size in conv_filter_sizes:
-                for pool_filter_size in pool_filter_sizes:
-                
-                    model = Sequential()
-                    model.add(Input(shape=(_img_width, _img_height, 1)))
-                    model._name = "conv_filter_{}_conv_size_{}_conv_filter_size_{}_pool_filter_size_{}".format(conv_filter, conv_size, conv_filter_size[0], pool_filter_size[0])
-                    #model._name = "zigi_12"
-                    
-                    for i in range(1,conv_size):
-                        #print(conv_size, conv_filter_size, pool_filter_size, i)
-                        model.add(Conv2D(conv_filter, conv_filter_size, padding="same", activation="relu"))
-                        model.add(MaxPool2D(pool_filter_size, strides=(2, 2)))
-                    
-                    model.add(Flatten())
-                    model.add(Dense(2, activation='softmax'))
-                    
-                    models.append(model)
-        
+    names = ['cnn1', 'cnn3', 'cnn4']
+               
+    models.append(model_cnn1(_img_width, _img_height))
+    models.append(model_cnn3(_img_width, _img_height))
+    models.append(model_cnn4(_img_width, _img_height))
 
-    print(len(models), "models prepared...")
-    return models
+        
+    return names, models
 
 def model_sequence_manual_2(_img_width, _img_height):
     models = []
-    names = ['VGG16', 'VGG19', 'ResNet50', 'denseNet201', 
+    names = ['VGG16', 'VGG19', 'denseNet201', 
              'denseNet121', 'cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7']
                
 
     models.append(model_VGG16(_img_width, _img_height))
     models.append(model_VGG19(_img_width, _img_height))
-    #models.append(model_ResNet50(_img_width, _img_height))
     models.append(model_densenet201(_img_width, _img_height))
     models.append(model_densenet121(_img_width, _img_height))
     models.append(model_cnn1(_img_width, _img_height))

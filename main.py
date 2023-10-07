@@ -4,7 +4,7 @@ import work.models as m
 import work.data as d
 import work
 import tensorflow as tf
-from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.optimizers import RMSprop, Adam
 import yaml    
 import logging
 
@@ -62,21 +62,24 @@ BASE_LR = 0.001#1e-6
 VERBOSE_FLAG = False
 
 
-def train_model(_x_train, _y_train, _x_test, _y_test, _epochs):
-    
+def train_single_model(_epochs):
+    INPUT_PATH = BASE_PATH + 'modeling/all_images/'
+    OUTPUT_TEST_PATH = TEST_PATH
+    OUTPUT_TRAIN_PATH = TRAIN_PATH
+    OUTPUT_VAL_PATH = VAL_PATH
+    X_train, y_train, X_val, y_val, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0)
+        
     m1 = m.model_cnn1(IMG_WIDTH, IMG_HEIGHT)
-    print("processing started...")
-    print("cancer ratio in train data is:", round(sum(_y_train[:,1])/len(_y_train[:,1]),2))
-    print("cancer ratio in test data is:", round(sum(_y_test[:,1])/len(_y_test[:,1]),2))
-    m1.compile(optimizer = RMSprop(learning_rate=BASE_LR), loss='categorical_crossentropy', metrics=["accuracy"]) 
-    hist = m1.fit(_x_train, _y_train, validation_data=(_x_test, _y_test), batch_size=BATCH_SIZE, epochs=_epochs)
     
-    ev = m1.evaluate(_x_test, _y_test)
+    m1.compile(optimizer = Adam(learning_rate = BASE_LR), loss = 'categorical_crossentropy', metrics=["accuracy"]) 
+    hist = m1.fit(X_train, y_train, validation_data=(X_val, y_val), batch_size=BATCH_SIZE, epochs=_epochs)
     
-    print("processing finished!");
-    return ev
+    ev = m1.evaluate(X_test, y_test)
+    
+    logger.info("processing finished! accuracy=" + str(round(ev[1], 2)));
+    
+    return m1
      
-
 def reinitialize(model):
     for l in model.layers:
         if hasattr(l,"kernel_initializer"):
@@ -87,11 +90,14 @@ def reinitialize(model):
             l.recurrent_kernel.assign(l.recurrent_initializer(tf.shape(l.recurrent_kernel)))
             
 def get_config():
+    # res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
+    # learning_rates = [0.05, 0.01, 0.005]
+    # batch_sizes = [8, 16, 32]
+    # optimizers = ['Adam', 'SDG']
     res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
-    learning_rates = [0.05, 0.01, 0.005]
-    batch_sizes = [8, 16, 32]
-    optimizers = ['Adam', 'SDG']
-    
+    learning_rates = [0.005]
+    batch_sizes = [8,32]
+    optimizers = ['SDG'] 
     for l in learning_rates:
         for b in batch_sizes:
             for o in optimizers:        
@@ -132,7 +138,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none"):
         OUTPUT_TRAIN_PATH = TRAIN_PATH_FELZEN
 
     
-    _, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+    _, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
     model_cnt = len(models)
     
     logger.info('processing start... ' + 'models: ' + str(model_cnt) + ' cv iters: ' + str(_iters) + ' filter: ' + str(_filter))
@@ -152,7 +158,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none"):
             for m_num in range(model_cnt):
                 run_num = run_num + 1
                 start = timeit.default_timer()
-                names, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+                names, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
                 m1 = models[m_num]
                 m1_name = names[m_num]
                 
@@ -209,11 +215,34 @@ def main_loop(_epochs, _iters):
     hist = train_model_multi_cv(_epochs, _iters, 'none')
     
     logger.info("training finished!")
+   
+def train_and_save(_epochs, _out_filename):
+    logger.info("starting...")
     
+    random.seed(123)
+    np.random.seed(123)
+    tf.keras.utils.set_random_seed(123)
+    
+    m1 = train_single_model(_epochs)
+    m1.save(_out_filename, save_format='tf')
+    logger.info("training finished!")
+    
+    return m1
+   
 
 # importlib.reload(work.models)
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop(30,2)
+main_loop(40,5)
 
+# m1 = train_and_save(30, 'models/m1')
+# m1 = keras.models.load_model('models/m1')
+
+# val_file = d.img_to_predict("C:/datasets/COI/v2/baza/modeling/all_images/base_resized_out_rec_from_shape_143_1741_21.png")
+
+# y_pred = m1.predict(val_file)
+# print(y_pred)
+
+# for layer in m1.layers:
+#     print(layer.name)

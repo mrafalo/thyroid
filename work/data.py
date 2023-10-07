@@ -327,14 +327,29 @@ def split_data(_data_file, _train_path, _val_path, _test_path, _augument):
     y_val = to_categorical(y_val, nb_classes)
     y_test = to_categorical(y_test, nb_classes)
     
-    print(len(X_train), X_train.shape) 
-    print(len(X_val), X_val.shape) 
-    print(len(X_test), X_test.shape)
+    # print(len(X_train), X_train.shape) 
+    # print(len(X_val), X_val.shape) 
+    # print(len(X_test), X_test.shape)
 
     return X_train, y_train, X_val, y_val, X_test, y_test        
                     
 
+    
 
+def img_to_predict(_file_path):
+
+    X_val = np.array(cv2.imread(_file_path , cv2.IMREAD_GRAYSCALE))
+    
+    
+    im_width = X_val.shape[0]
+    im_height = X_val.shape[1]
+    
+    X_val = X_val.reshape(1,im_width,im_height,1)
+    X_val = X_val.astype('float32')
+    X_val /= 255
+
+    return X_val        
+                    
 
 
 
