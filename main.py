@@ -96,7 +96,7 @@ def get_config():
     # optimizers = ['Adam', 'SDG']
     res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
     learning_rates = [0.005]
-    batch_sizes = [8,32]
+    batch_sizes = [32]
     optimizers = ['SDG'] 
     for l in learning_rates:
         for b in batch_sizes:
@@ -149,7 +149,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none"):
     run_num = 0
     for i in range(_iters):
         
-        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0.15, 0.15)
+        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0.1, 0.05)
                 
         X_train, y_train, X_val, y_val, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0)
         
@@ -234,7 +234,7 @@ def train_and_save(_epochs, _out_filename):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop(40,5)
+main_loop(40,10)
 
 # m1 = train_and_save(30, 'models/m1')
 # m1 = keras.models.load_model('models/m1')
@@ -244,5 +244,8 @@ main_loop(40,5)
 # y_pred = m1.predict(val_file)
 # print(y_pred)
 
+# m1 = m.model_cnn_base(IMG_WIDTH, IMG_WIDTH);
+# m1.summary()
+
 # for layer in m1.layers:
-#     print(layer.name)
+#     print(layer.shape())

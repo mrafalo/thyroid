@@ -67,6 +67,7 @@ def split_files(_source_path, _train_path, _val_path, _test_path, _val_ratio, _t
          os.remove(file_path)
          
     number_of_test_files = int(np.round(_test_ratio * len(fnmatch.filter(os.listdir(_source_path), '*.png'))))
+    number_of_val_files = int(np.round(_val_ratio * len(fnmatch.filter(os.listdir(_source_path), '*.png'))))
    
     test_list = []
     for i in range(number_of_test_files):
@@ -76,7 +77,7 @@ def split_files(_source_path, _train_path, _val_path, _test_path, _val_ratio, _t
             shutil.copy(_source_path + random_file, _test_path + random_file)
             test_list.append(filename)
                
-    number_of_val_files = int(np.round(_val_ratio * len(fnmatch.filter(os.listdir(_source_path), '*.png'))))
+    
            
     val_list = []
     for i in range(number_of_val_files):
