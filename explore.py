@@ -207,6 +207,7 @@ def report_variables_vs_typ_raka():
 def report_variables_vs_nieokreslone():
     df = d.load_data_file(BASE_FILE_PATH)
 
+
     zmienne = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
     'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
     'budowa_lito_plynowa', 'budowa_plynowo_lita', 'ksztalt_owalny',

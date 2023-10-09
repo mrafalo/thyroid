@@ -108,7 +108,7 @@ def get_config():
     return res
 
             
-def train_model_multi_cv(_epochs, _iters, _filter="none"):
+def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
     
     
     if _filter == "none": 
@@ -150,9 +150,12 @@ def train_model_multi_cv(_epochs, _iters, _filter="none"):
     for i in range(_iters):
         
         d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0.1, 0.05)
-                
-        X_train, y_train, X_val, y_val, X_test, y_test = d.split_data(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0)
-        
+         
+        if _feature=='cancer':
+            X_train, y_train, X_val, y_val, X_test, y_test = d.split_data_4cancer(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0)
+        else:
+            X_train, y_train, X_val, y_val, X_test, y_test = d.split_data_4feature(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0, _feature)
+            
         for idx, c in config.iterrows():
             
             for m_num in range(model_cnt):
@@ -172,10 +175,11 @@ def train_model_multi_cv(_epochs, _iters, _filter="none"):
 
                 elapsed = timedelta(minutes=stop-start)
 
-                histories = pd.DataFrame(columns =["run_num", "total_runs", "model_name", "model_num", "iter_num", "filter",  "cancer_ratio_train", 
+                histories = pd.DataFrame(columns =["target_feature", "run_num", "total_runs", "model_name", "model_num", "iter_num", "filter",  "cancer_ratio_train", 
                                                    "cancer_ratio_test","accuracy", "train_dataset_size", "test_dataset_size",
                                                    "learning_rate", "batch_size", "optimizer", "elapsed_mins"])
-                new_row = {'run_num': run_num,
+                new_row = {'target_feature': _feature,
+                           'run_num': run_num,
                            'total_runs': total_runs,
                            'model_name': m1_name,
                            'model_num':m_num+1,
@@ -209,10 +213,20 @@ def main_loop(_epochs, _iters):
     tf.keras.utils.set_random_seed(123)
     
     f = open('results.csv','w') 
-    f.write("run_num, total_runs, model_name, model_num, iter_num, filter,  cancer_ratio_train, cancer_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
+    f.write("target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  cancer_ratio_train, cancer_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
     f.close()
     
-    hist = train_model_multi_cv(_epochs, _iters, 'none')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'ksztalt_nieregularny')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'Zwapnienia_mikrozwapnienia')
+    
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'ksztalt_nieregularny')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'Zwapnienia_mikrozwapnienia')
+    
+    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'ksztalt_nieregularny')
+    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'Zwapnienia_mikrozwapnienia')
     
     logger.info("training finished!")
    
@@ -234,7 +248,7 @@ def train_and_save(_epochs, _out_filename):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop(40,10)
+main_loop(30,5)
 
 # m1 = train_and_save(30, 'models/m1')
 # m1 = keras.models.load_model('models/m1')
