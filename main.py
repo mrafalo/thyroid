@@ -149,7 +149,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
     run_num = 0
     for i in range(_iters):
         
-        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0.1, 0.05)
+        d.split_files(INPUT_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0.15, 0.1)
          
         if _feature=='cancer':
             X_train, y_train, X_val, y_val, X_test, y_test = d.split_data_4cancer(BASE_FILE_PATH, OUTPUT_TRAIN_PATH, OUTPUT_VAL_PATH, OUTPUT_TEST_PATH, 0)
@@ -219,15 +219,9 @@ def main_loop(_epochs, _iters):
     hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_gleboko_hipo')
     hist = train_model_multi_cv(_epochs, _iters, 'none', 'ksztalt_nieregularny')
     hist = train_model_multi_cv(_epochs, _iters, 'none', 'Zwapnienia_mikrozwapnienia')
-    
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'echo_gleboko_hipo')
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'ksztalt_nieregularny')
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'Zwapnienia_mikrozwapnienia')
-    
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'echo_gleboko_hipo')
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'ksztalt_nieregularny')
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'Zwapnienia_mikrozwapnienia')
-    
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'granice_nierowne')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'orientacja_rownolegla')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'wezly_chlonne_patologiczne')    
     logger.info("training finished!")
    
 def train_and_save(_epochs, _out_filename):
