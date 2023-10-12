@@ -167,16 +167,16 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
                 
                 keras.backend.clear_session()
                 
-                
-                ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer']);
+                model_name = "models/"+m1_name + _feature + "_" + str(run_num)
+                ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer'], model_name);
                             
                 
                 stop = timeit.default_timer()
 
                 elapsed = timedelta(minutes=stop-start)
 
-                histories = pd.DataFrame(columns =["target_feature", "run_num", "total_runs", "model_name", "model_num", "iter_num", "filter",  "cancer_ratio_train", 
-                                                   "cancer_ratio_test","accuracy", "train_dataset_size", "test_dataset_size",
+                histories = pd.DataFrame(columns =["target_feature", "run_num", "total_runs", "model_name", "model_num", "iter_num", "filter",  "target_ratio_train", 
+                                                   "target_ratio_test","accuracy", "train_dataset_size", "test_dataset_size",
                                                    "learning_rate", "batch_size", "optimizer", "elapsed_mins"])
                 new_row = {'target_feature': _feature,
                            'run_num': run_num,
@@ -185,8 +185,8 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
                            'model_num':m_num+1,
                            'iter_num':i+1,
                            'filter':_filter, 
-                           'cancer_ratio_train':round(sum(y_train[:,1])/len(y_train[:,1]),2),
-                           'cancer_ratio_test':round(sum(y_test[:,1])/len(y_test[:,1]),2),
+                           'target_ratio_train':round(sum(y_train[:,1])/len(y_train[:,1]),2),
+                           'target_ratio_test':round(sum(y_test[:,1])/len(y_test[:,1]),2),
                            'accuracy': round(ev[1], 2),
                            'train_dataset_size':len(y_test),
                            'test_dataset_size':len(y_train),
@@ -213,15 +213,22 @@ def main_loop(_epochs, _iters):
     tf.keras.utils.set_random_seed(123)
     
     f = open('results.csv','w') 
-    f.write("target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  cancer_ratio_train, cancer_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
+    f.write("target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
     f.close()
     
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_gleboko_hipo')
+
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'granice_rowne')
     hist = train_model_multi_cv(_epochs, _iters, 'none', 'ksztalt_nieregularny')
     hist = train_model_multi_cv(_epochs, _iters, 'none', 'Zwapnienia_mikrozwapnienia')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'granice_nierowne')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'orientacja_rownolegla')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'wezly_chlonne_patologiczne')    
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'granice_zatarte')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'USG_AZT')    
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'Zwapnienia_makrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_nieznacznie_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'brzegi_spikularne')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'ksztalt_owalny')
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'torbka_modelowanie')    
+    
     logger.info("training finished!")
    
 def train_and_save(_epochs, _out_filename):
@@ -236,13 +243,14 @@ def train_and_save(_epochs, _out_filename):
     logger.info("training finished!")
     
     return m1
-   
+
+    
 
 # importlib.reload(work.models)
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop(30,5)
+main_loop(30,1)
 
 # m1 = train_and_save(30, 'models/m1')
 # m1 = keras.models.load_model('models/m1')

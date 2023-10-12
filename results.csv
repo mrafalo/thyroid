@@ -1,4 +1,4 @@
 target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  cancer_ratio_train, cancer_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins
-echo_gleboko_hipo,1,2,cnn1,1,1,none,0.35,0.33,0.67,21,415,0.005,32,SDG,1
-echo_gleboko_hipo,2,2,cnn4,2,1,none,0.35,0.33,0.67,21,415,0.005,32,SDG,1
-ksztalt_nieregularny,1,2,cnn1,1,1,none,0.14,0.17,0.83,24,412,0.005,32,SDG,1
+granice_rowne,1,1,cnn1,1,1,none,0.37,0.44,0.56,43,374,0.005,32,SDG,3
+ksztalt_nieregularny,1,1,cnn1,1,1,none,0.15,0.17,0.85,47,370,0.005,32,SDG,41
+Zwapnienia_mikrozwapnienia,1,1,cnn1,1,1,none,0.2,0.13,0.87,45,374,0.005,32,SDG,3

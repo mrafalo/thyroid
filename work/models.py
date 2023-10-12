@@ -364,7 +364,7 @@ def model_ResNet50(_img_width, _img_height):
  
     return model
 
-def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer):
+def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer, _model_name):
     
     # print('_batch_size:',_batch_size)
     # print(len(_X_train), _X_train.shape) 
@@ -381,6 +381,7 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
     hist = _model.fit(_X_train, _y_train, validation_data=(_X_val, _y_val), batch_size=_batch_size, epochs=_epochs, verbose=False)
     
     ev = _model.evaluate(_X_test, _y_test, verbose=False)
+    _model.save(_model_name, save_format='tf')
     
     return ev
     
