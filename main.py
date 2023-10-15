@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import RMSprop, Adam
 import yaml    
 import logging
-
+from datetime import datetime
 import utils
 import keras
 import random
@@ -43,18 +43,23 @@ TEST_PATH = BASE_PATH + 'modeling/all_images/test/'
 
 TRAIN_PATH_BW = BASE_PATH + 'modeling/all_images_bw/train/'
 TEST_PATH_BW = BASE_PATH + 'modeling/all_images_bw/test/'
+VAL_PATH_BW = BASE_PATH + 'modeling/all_images/bw/validation/'
 
 TRAIN_PATH_SOBEL = BASE_PATH + 'modeling/all_images_sobel/train/'
 TEST_PATH_SOBEL = BASE_PATH + 'modeling/all_images_sobel/test/'
+VAL_PATH_SOBEL = BASE_PATH + 'modeling/all_images/sobel/validation/'
 
 TRAIN_PATH_HEAT = BASE_PATH + 'modeling/all_images_heat/train/'
 TEST_PATH_HEAT = BASE_PATH + 'modeling/all_images_heat/test/'
+VAL_PATH_HEAT = BASE_PATH + 'modeling/all_images/heat/validation/'
 
 TRAIN_PATH_CANNY = BASE_PATH + 'modeling/all_images_canny/train/'
 TEST_PATH_CANNY = BASE_PATH + 'modeling/all_images_canny/test/'
+VAL_PATH_CANNY = BASE_PATH + 'modeling/all_images/canny/validation/'
 
 TRAIN_PATH_FELZEN = BASE_PATH + 'modeling/all_images_felzen/train/'
 TEST_PATH_FELZEN = BASE_PATH + 'modeling/all_images_felzen/test/'
+VAL_PATH_FELZEN = BASE_PATH + 'modeling/all_images/felzen/validation/'
 
 BATCH_SIZE = 12
 EPOCHS = 100
@@ -110,6 +115,10 @@ def get_config():
             
 def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
     
+    random.seed(123)
+    np.random.seed(123)
+    tf.keras.utils.set_random_seed(123)
+    
     
     if _filter == "none": 
         INPUT_PATH = BASE_PATH + 'modeling/all_images/'
@@ -120,22 +129,27 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
         INPUT_PATH = BASE_PATH + 'modeling/all_images_canny/'
         OUTPUT_TEST_PATH = TEST_PATH_CANNY
         OUTPUT_TRAIN_PATH = TRAIN_PATH_CANNY
+        OUTPUT_VAL_PATH = VAL_PATH_CANNY
     if _filter == "heat":
         INPUT_PATH = BASE_PATH + 'modeling/all_images_heat/'
         OUTPUT_TEST_PATH = TEST_PATH_HEAT
         OUTPUT_TRAIN_PATH = TRAIN_PATH_HEAT
+        OUTPUT_VAL_PATH = VAL_PATH_HEAT
     if _filter == "sobel":
         INPUT_PATH = BASE_PATH + 'modeling/all_images_sobel/'
         OUTPUT_TEST_PATH = TEST_PATH_SOBEL
         OUTPUT_TRAIN_PATH = TRAIN_PATH_SOBEL
+        OUTPUT_VAL_PATH = VAL_PATH_SOBEL
     if _filter == "bw":
         INPUT_PATH = BASE_PATH + 'modeling/all_images_bw/'
         OUTPUT_TEST_PATH = TEST_PATH_BW
         OUTPUT_TRAIN_PATH = TRAIN_PATH_BW
+        OUTPUT_VAL_PATH = VAL_PATH_BW
     if _filter == "felzen":
         INPUT_PATH = BASE_PATH + 'modeling/all_images_felzen/'
         OUTPUT_TEST_PATH = TEST_PATH_FELZEN
         OUTPUT_TRAIN_PATH = TRAIN_PATH_FELZEN
+        OUTPUT_VAL_PATH = VAL_PATH_FELZEN
 
     
     _, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
@@ -167,7 +181,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
                 
                 keras.backend.clear_session()
                 
-                model_name = "models/"+m1_name + _feature + "_" + str(run_num)
+                model_name = "models/" + m1_name +"_" + _feature  + "_" + _filter + "_" + str(run_num)
                 ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer'], model_name);
                             
                 
@@ -175,10 +189,15 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
 
                 elapsed = timedelta(minutes=stop-start)
 
-                histories = pd.DataFrame(columns =["target_feature", "run_num", "total_runs", "model_name", "model_num", "iter_num", "filter",  "target_ratio_train", 
+                histories = pd.DataFrame(columns =["date", "target_feature", "run_num", "total_runs", "model_name", "model_num", "iter_num", "filter",  "target_ratio_train", 
                                                    "target_ratio_test","accuracy", "train_dataset_size", "test_dataset_size",
                                                    "learning_rate", "batch_size", "optimizer", "elapsed_mins"])
-                new_row = {'target_feature': _feature,
+                
+
+                curr_date = datetime.now().strftime("%Y%m%d_%H%M")
+   
+                new_row = {'date': curr_date,
+                           'target_feature': _feature,
                            'run_num': run_num,
                            'total_runs': total_runs,
                            'model_name': m1_name,
@@ -208,26 +227,48 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer"):
 def main_loop(_epochs, _iters):
     logger.info("starting...")
     
-    random.seed(123)
-    np.random.seed(123)
-    tf.keras.utils.set_random_seed(123)
+
     
-    f = open('results.csv','w') 
-    f.write("target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
-    f.close()
+    # f = open('results.csv','w') 
+    # f.write("date, target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
+    # f.close()
     
 
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'granice_rowne')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'ksztalt_nieregularny')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'Zwapnienia_mikrozwapnienia')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'granice_zatarte')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_gleboko_hipo')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'USG_AZT')    
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'Zwapnienia_makrozwapnienia')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'echo_nieznacznie_hipo')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'brzegi_spikularne')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'ksztalt_owalny')
-    hist = train_model_multi_cv(_epochs, _iters, 'none', 'torbka_modelowanie')    
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'granice_rowne')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'ksztalt_nieregularny')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'Zwapnienia_mikrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'granice_zatarte')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'USG_AZT')    
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'Zwapnienia_makrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'echo_nieznacznie_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'brzegi_spikularne')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'ksztalt_owalny')
+    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'torbka_modelowanie')    
+    
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'granice_rowne')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'ksztalt_nieregularny')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'Zwapnienia_mikrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'granice_zatarte')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'USG_AZT')    
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'Zwapnienia_makrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'echo_nieznacznie_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'brzegi_spikularne')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'ksztalt_owalny')
+    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'torbka_modelowanie')   
+
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'granice_rowne')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'ksztalt_nieregularny')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'Zwapnienia_mikrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'granice_zatarte')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'echo_gleboko_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'USG_AZT')    
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'Zwapnienia_makrozwapnienia')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'echo_nieznacznie_hipo')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'brzegi_spikularne')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'ksztalt_owalny')
+    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'torbka_modelowanie')   
     
     logger.info("training finished!")
    
@@ -250,18 +291,7 @@ def train_and_save(_epochs, _out_filename):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop(30,1)
+main_loop(20,5)
 
-# m1 = train_and_save(30, 'models/m1')
-# m1 = keras.models.load_model('models/m1')
 
-# val_file = d.img_to_predict("C:/datasets/COI/v2/baza/modeling/all_images/base_resized_out_rec_from_shape_143_1741_21.png")
 
-# y_pred = m1.predict(val_file)
-# print(y_pred)
-
-# m1 = m.model_cnn_base(IMG_WIDTH, IMG_WIDTH);
-# m1.summary()
-
-# for layer in m1.layers:
-#     print(layer.shape())
