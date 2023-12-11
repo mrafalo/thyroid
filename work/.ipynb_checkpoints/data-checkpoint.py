@@ -10,7 +10,7 @@ import shutil
 import utils.image_manipulator as im
 import fnmatch
 import np_utils
-from sklearn.model_selection import train_test_split
+
 
 def augment(_dataset):
     # data augmentation
@@ -26,94 +26,9 @@ def augment(_dataset):
     )
     return seq.augment_images(_dataset)
 
-def extract_image(_image, _image_path):
-    IMG_BORDER = 10
-    raw_image = cv2.imread(_image_path)
-    
-    height, width = _image.shape[:2]
-    hsv = _image#cv2.cvtColor(_image, cv2.COLOR_BGR2HSV)
-    lower_red = np.array([0, 0, 200])
-    upper_red = np.array([120, 120, 255])
-    
-    mask = cv2.inRange(hsv, lower_red, upper_red)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contour = contours[0]
-    # el = np.array([contour[0]])
-    # contour = np.concatenate((contour, el))
-
-    #cv2.drawContours(_image, contour, -1, (0,0, 255), 2)  
-    cv2.polylines(_image, [contour], isClosed=True, color=(0, 0, 255), thickness=2)
-    
-    hsv = _image
-    mask = cv2.inRange(hsv, lower_red, upper_red)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contour = contours[0]
-
-    bw_mask = np.zeros_like(raw_image)
-    cv2.fillPoly(bw_mask, pts=[contour], color=(255, 255, 255))
-    raw_image = cv2.bitwise_and(raw_image, bw_mask)
-
-    x, y, w, h = cv2.boundingRect(contour)
-    y1 = y - IMG_BORDER if y - IMG_BORDER > 0 else 0
-    y2 = y + h + IMG_BORDER if y + IMG_BORDER + h < height else height
-    x1 = x - IMG_BORDER if x - IMG_BORDER > 0 else 0
-    x2 = x + w + IMG_BORDER if x + IMG_BORDER + w < width else width
-    
-    return raw_image[y1:y2, x1:x2]
 
 
-def resize_with_aspect_ratio(_image, width=None, height=None):
-    (h, w) = _image.shape[:2]
-
-    if width is None and height is None:
-        return _image
-
-    if width is None:
-        # Calculate the ratio of the height and construct the dimensions
-        r = height / float(h)
-        dim = (int(w * r), height)
-    else:
-        # Calculate the ratio of the width and construct the dimensions
-        r = width / float(w)
-        dim = (width, int(h * r))
-
-    # Resize the image
-    resized = cv2.resize(_image, dim, interpolation=cv2.INTER_AREA)
-
-    # Check if we need to add padding
-    delta_w = width - resized.shape[1]
-    delta_h = height - resized.shape[0]
-    top, bottom = delta_h // 2, delta_h - (delta_h // 2)
-    left, right = delta_w // 2, delta_w - (delta_w // 2)
-    
-    top = 0 if top < 0 else top
-    bottom = 0 if bottom < 0 else bottom
-    left = 0 if left < 0 else left
-    right = 0 if right < 0 else right
-    
-    color = [0, 0, 0]  # Black padding
-    resized_with_padding = cv2.copyMakeBorder(resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
-    resized_with_padding = cv2.resize(resized_with_padding, (width, height), interpolation=cv2.INTER_AREA)
-    return resized_with_padding
-    
-def extract_and_resize_images(_input_path, _output_path, _raw_path, _width, _height):
-    res = 0
-    for f in os.listdir(_input_path):
-        filename = os.fsdecode(f)
-        if filename.endswith(".png"): 
-            print('processing', f, 'to', f.replace("out_shape_", ""))
-            image = cv2.imread(_input_path+f)
-            image = extract_image(image, _raw_path + filename.replace("out_shape_", ""))
-            image = im.blur_manual(image, 2, 1)
-            # resized = cv2.resize(image, (_width, _heigt), interpolation = cv2.INTER_AREA)
-            resized = resize_with_aspect_ratio(image, _width, _height)
-            gray = resized #cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-            cv2.imwrite(_output_path+'resized_' + f, gray)
-            #print('processing', f, 'to', f.replace("out_shape_", ""))
-            res = res + 1
-    return res
-
-def resize_images(_input_path, _output_path, _width, _height):
+def resize_images(_input_path, _output_path, _width, _heigt):
     
     res = 0
     for f in os.listdir(_input_path):
@@ -121,7 +36,7 @@ def resize_images(_input_path, _output_path, _width, _height):
         if filename.endswith(".png"): 
             image = cv2.imread(_input_path+f)
             image = im.blur_manual(image, 2, 1)
-            resized = cv2.resize(image, (_width, _height), interpolation = cv2.INTER_AREA)
+            resized = cv2.resize(image, (_width, _heigt), interpolation = cv2.INTER_AREA)
             gray = resized #cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
             cv2.imwrite(_output_path+'resized_' + f, gray)
             res = res + 1
@@ -161,7 +76,9 @@ def split_files(_source_path, _train_path, _val_path, _test_path, _val_ratio, _t
         if filename.endswith(".png"): 
             shutil.copy(_source_path + random_file, _test_path + random_file)
             test_list.append(filename)
-                   
+               
+    
+           
     val_list = []
     for i in range(number_of_val_files):
         random_file = random.choice(os.listdir(_source_path))
@@ -208,6 +125,7 @@ def mass_transformer(_source_path, _dest_path_base, _dest_path_canny, _dest_path
 
             
                     
+
 def malignancy_splitter(_data_file, _source_path, _dest_path_benign, _dest_path_malignant,  _transformation):
     df = pd.read_csv(_data_file, sep=';')
     
@@ -322,36 +240,34 @@ def load_data_file(_data_file):
     return df
 
     
-def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_ratio, _seed=123):
+def split_data_4cancer(_data_file, _train_path, _val_path, _test_path, _augument, ):
     
     df = load_data_file(_data_file)
 
-    # df1 = df[df.label_cancer.isin(['PTC'])]
-    # df2 = df[df.rak == 0]
-    # df = pd.concat([df1,df2])
-     
-    X = []
-    y = []
+    df1 = df[df.label_cancer.isin(['PTC'])]
+    df2 = df[df.rak == 0]
+    df = pd.concat([df1,df2])
+      
+    X_train = []     
+    y_train = []
+    X_val = []     
+    y_val = []
+    X_test = []     
+    y_test = []
     
-    for f in os.listdir(_base_path):
+    for f in os.listdir(_train_path):
         f_slit = f.split('_')
+        id_coi = f_slit[6]
     
-        id_coi = f_slit[4]
-     
-        if len(df.loc[(df.id_coi==id_coi) ,'rak']) > 0:
+        if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
             rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
-            y.append(rak)
-            X.append(np.array(cv2.imread(_base_path + f, cv2.IMREAD_GRAYSCALE)))
-        else:
-            raise ValueError("Patient id_coi:", id_coi, 'not found!')
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=_test_ratio, random_state=_seed)
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=_val_ratio, random_state=_seed)
+            y_train.append(rak)
+            X_train.append(np.array(cv2.imread(_train_path + f, cv2.IMREAD_GRAYSCALE)))
     
     if _augument > 0:
         X_train_tmp = X_train
         y_train_tmp = y_train
-    
+        
         for i in range(0, _augument):
             X_train_augumented = augment(X_train)
             X_train_tmp = X_train_tmp + X_train_augumented
@@ -359,11 +275,29 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
             
         X_train = X_train_tmp
         y_train = y_train_tmp
+        
+    for f in os.listdir(_val_path):
+        f_slit = f.split('_')
+        id_coi = f_slit[6]
+        if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
+            rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
+            y_val.append(rak)
+            X_val.append(np.array(cv2.imread(_val_path + f, cv2.IMREAD_GRAYSCALE)))
     
+
+    for f in os.listdir(_test_path):
+        f_slit = f.split('_')
+        id_coi = f_slit[6]
+        if len(df.loc[(df.id_coi==id_coi) ,'rak']) >0:
+            rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
+            y_test.append(rak)
+            X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)))
+    
+        
     train_size = len(X_train)
     test_size = len(X_test)
     val_size = len(X_val)
-    
+     
     X_train = np.array(X_train)
     y_train = np.array(y_train)
     
@@ -372,6 +306,7 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
     
     X_val = np.array(X_val)
     y_val = np.array(y_val)
+   
     
     im_width = X_train[0].shape[0]
     im_height = X_train[0].shape[1]
@@ -392,6 +327,10 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
     y_train = to_categorical(y_train, nb_classes)
     y_val = to_categorical(y_val, nb_classes)
     y_test = to_categorical(y_test, nb_classes)
+    
+    # print(len(X_train), X_train.shape) 
+    # print(len(X_val), X_val.shape) 
+    # print(len(X_test), X_test.shape)
 
     return X_train, y_train, X_val, y_val, X_test, y_test        
                     

@@ -2,8 +2,10 @@
 from keras.initializers import Constant
 from keras.layers import Input, Conv2D, Flatten, Activation, MaxPool2D, Dropout
 from keras.models import Model
+
 from keras.models import Sequential
 from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
+
 import tensorflow as tf
 from keras import backend as K
 from tensorflow.keras.optimizers import RMSprop
@@ -12,16 +14,21 @@ from keras.layers import Dense, Conv2D,  MaxPool2D, Flatten, GlobalAveragePoolin
 import logging
 from tensorflow.keras.optimizers import RMSprop, Adam, SGD
 from keras.models import load_model
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from sklearn import metrics
-import numpy as np
-import utils.custom_logger as cl
-
-logger = cl.get_logger()
+logger = logging.getLogger('main')
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s(%(name)s) %(levelname)s: %(message)s')
+ch.setFormatter(formatter)
+ch.setLevel(logging.DEBUG)
+if (logger.hasHandlers()):
+    logger.handlers.clear()
+  
+logger.addHandler(ch)
 
 def focal_loss(y_true, y_pred, gamma=2, alpha=2):
     pt = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
     return -K.sum(alpha * K.pow(1. - pt, gamma) * K.log(pt + 1e-6), axis=-1)
+
 
 def model_cnn_base(_img_width, _img_height):
     # 160x160x1
@@ -246,11 +253,11 @@ def model_sequence_auto(_img_width, _img_height):
 
 def model_sequence_manual_1(_img_width, _img_height):
     models = []
-    names = ['cnn1']
+    names = ['cnn1', 'cnn4']
                
     models.append(model_cnn1(_img_width, _img_height))
-    # models.append(model_cnn4(_img_width, _img_height))
-    # models.append(model_densenet201(_img_width, _img_height))
+    models.append(model_cnn4(_img_width, _img_height))
+
         
     return names, models
 
@@ -283,6 +290,13 @@ def model_sequence_manual_3(_img_width, _img_height):
     models.append(model_cnn5(_img_width, _img_height))  
         
     return models    
+
+def model_resnet(_img_width, _img_height):
+    model = ResNet18(2)
+    model.build(input_shape = (None,_img_width,_img_height, 1))
+    #use categorical_crossentropy since the label is one-hot encoded
+    
+    return model
 
 def model_densenet201(_img_width, _img_height):
     
@@ -350,47 +364,12 @@ def model_ResNet50(_img_width, _img_height):
  
     return model
 
-
-def find_cutoff(target, predicted):
-    fpr, tpr, t = metrics.roc_curve(target, predicted)
-    tnr = 1 - fpr
-    g = np.sqrt(tpr*tnr)
-    pos = np.argmax(g)
-
-    return t[pos]    
-
-def model_predictor(_model, _X_test, _y_test):
-    
-    _y_test = _y_test[:,1]
-    m_opt_predict = _model.predict(_X_test, verbose=0)[:,1]
-        
-    t = find_cutoff(_y_test,m_opt_predict)
-    
-    m_opt_predict_binary = [1 if x >= t else 0 for x in m_opt_predict]
-
-    conf_matrix = np.round(metrics.confusion_matrix(_y_test, m_opt_predict_binary),2)
-    
-    accuracy = np.round(metrics.accuracy_score(_y_test, m_opt_predict_binary),2)
-    sensitivity = np.round(metrics.recall_score(_y_test, m_opt_predict_binary),2)
-    specificity = np.round(conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1]),2)
-    precision = np.round(metrics.precision_score(_y_test, m_opt_predict_binary),2)
-    auc = np.round(metrics.roc_auc_score(_y_test, m_opt_predict),2)
-    f1 = np.round(metrics.f1_score(_y_test, m_opt_predict_binary),2)
-    
-    res = {
-        'accuracy': accuracy,
-        'sensitivity': sensitivity,
-        'specificity': specificity,
-        'precision': precision,
-        'f1': f1,
-        'auc': auc,
-        'threshold': t
-    }
-    
-    return res
-
 def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer, _model_name):
     
+    # print('_batch_size:',_batch_size)
+    # print(len(_X_train), _X_train.shape) 
+    # print(len(_X_val), _X_val.shape) 
+    # print(len(_X_test), _X_test.shape)
     
     if _optimizer == 'Adam':
         opt = Adam(learning_rate=_learning_rate)
@@ -399,26 +378,14 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
       
     #_model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
     _model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
-    es = EarlyStopping(monitor='val_accuracy', mode='max', patience=10, restore_best_weights=True)
-                    
-    hist = _model.fit(_X_train, _y_train, 
-                      validation_data=(_X_val, _y_val), 
-                      callbacks=[es], 
-                      batch_size=_batch_size, 
-                      epochs=_epochs, 
-                      verbose=False)
+    hist = _model.fit(_X_train, _y_train, validation_data=(_X_val, _y_val), batch_size=_batch_size, epochs=_epochs, verbose=False)
     
+    ev = _model.evaluate(_X_test, _y_test, verbose=False)
     
-    if es.stopped_epoch > 0:
-        logger.info("early stopped at epoch: " + str(es.stopped_epoch) + ' of ' + str(_epochs));
-
-    #ev = _model.evaluate(_X_test, _y_test, verbose=False)
-
-    res = model_predictor(_model, _X_test, _y_test)
-
-    _model.save(_model_name+'_'+str(res['auc']), save_format='tf')
+    acc = round(ev[1], 2)
+    _model.save(_model_name+'_'+str(acc), save_format='tf')
     
-    return res
+    return ev
     
 
     

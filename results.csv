@@ -1,4 +1,0 @@
-date, target_feature, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins
-20231015_1841,granice_rowne,1,2,cnn1,1,1,heat,0.37,0.44,0.58,43,374,0.005,32,SDG,1
-20231015_1842,granice_rowne,2,2,cnn4,2,1,heat,0.37,0.44,0.44,43,374,0.005,32,SDG,2
-20231015_1844,ksztalt_nieregularny,1,2,cnn1,1,1,heat,0.15,0.17,0.83,47,370,0.005,32,SDG,2
