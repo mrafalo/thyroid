@@ -326,10 +326,6 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
     
     df = load_data_file(_data_file)
 
-    # df1 = df[df.label_cancer.isin(['PTC'])]
-    # df2 = df[df.rak == 0]
-    # df = pd.concat([df1,df2])
-     
     X = []
     y = []
     
@@ -341,6 +337,80 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
         if len(df.loc[(df.id_coi==id_coi) ,'rak']) > 0:
             rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
             y.append(rak)
+            X.append(np.array(cv2.imread(_base_path + f, cv2.IMREAD_GRAYSCALE)))
+            
+            #print('id_coi:', id_coi, 'file:', f, 'rak:', rak)
+        else:
+            raise ValueError("Patient id_coi:", id_coi, 'not found!')
+    
+
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=_test_ratio, random_state=_seed)
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=_val_ratio, random_state=_seed)
+    
+    if _augument > 0:
+        X_train_tmp = X_train
+        y_train_tmp = y_train
+    
+        for i in range(0, _augument):
+            X_train_augumented = augment(X_train)
+            X_train_tmp = X_train_tmp + X_train_augumented
+            y_train_tmp = y_train_tmp + y_train
+            
+        X_train = X_train_tmp
+        y_train = y_train_tmp
+    
+    train_size = len(X_train)
+    test_size = len(X_test)
+    val_size = len(X_val)
+    
+    X_train = np.array(X_train)
+    y_train = np.array(y_train)
+    
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
+    
+    X_val = np.array(X_val)
+    y_val = np.array(y_val)
+    
+    im_width = X_train[0].shape[0]
+    im_height = X_train[0].shape[1]
+    X_train = X_train.reshape(train_size,im_width,im_height,1)
+    X_val = X_val.reshape(val_size,im_width,im_height,1)
+    X_test = X_test.reshape(test_size,im_width,im_height,1)
+    
+    
+    X_train = X_train.astype('float32')
+    X_val = X_val.astype('float32')
+    X_test = X_test.astype('float32')
+    
+    X_train /= 255
+    X_val /= 255
+    X_test /= 255
+
+    nb_classes = 2
+    y_train = to_categorical(y_train, nb_classes)
+    y_val = to_categorical(y_val, nb_classes)
+    y_test = to_categorical(y_test, nb_classes)
+
+
+    return X_train, y_train, X_val, y_val, X_test, y_test       
+                    
+def split_data_4feature(_data_file, _base_path, _augument, _val_ratio, _test_ratio, _feature, _seed=123):
+    
+    df = load_data_file(_data_file)
+
+    X = []
+    y = []
+    
+    for f in os.listdir(_base_path):
+        f_slit = f.split('_')
+    
+        id_coi = f_slit[4]
+     
+        if len(df.loc[(df.id_coi==id_coi) ,_feature]) >0:
+            feature_val = df.loc[(df.id_coi==id_coi) ,_feature].iloc[0]
+            y.append(feature_val)
             X.append(np.array(cv2.imread(_base_path + f, cv2.IMREAD_GRAYSCALE)))
         else:
             raise ValueError("Patient id_coi:", id_coi, 'not found!')
@@ -395,99 +465,7 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
 
     return X_train, y_train, X_val, y_val, X_test, y_test        
                     
-
-    
-def split_data_4feature(_data_file, _train_path, _val_path, _test_path, _augument, _feature):
-    
-    df = load_data_file(_data_file)
-
-    # df1 = df[df.label_cancer.isin(['PTC'])]
-    # df2 = df[df.rak == 0]
-    # df = pd.concat([df1,df2])
-      
-    X_train = []     
-    y_train = []
-    X_val = []     
-    y_val = []
-    X_test = []     
-    y_test = []
-    
-    for f in os.listdir(_train_path):
-        f_slit = f.split('_')
-        id_coi = f_slit[6]
-    
-        if len(df.loc[(df.id_coi==id_coi) ,_feature]) >0:
-            rak = df.loc[(df.id_coi==id_coi) ,_feature].iloc[0]
-            y_train.append(rak)
-            X_train.append(np.array(cv2.imread(_train_path + f, cv2.IMREAD_GRAYSCALE)))
-    
-    if _augument > 0:
-        X_train_tmp = X_train
-        y_train_tmp = y_train
-        
-        for i in range(0, _augument):
-            X_train_augumented = augment(X_train)
-            X_train_tmp = X_train_tmp + X_train_augumented
-            y_train_tmp = y_train_tmp + y_train
-            
-        X_train = X_train_tmp
-        y_train = y_train_tmp
-        
-    for f in os.listdir(_val_path):
-        f_slit = f.split('_')
-        id_coi = f_slit[6]
-        if len(df.loc[(df.id_coi==id_coi) ,_feature]) >0:
-            rak = df.loc[(df.id_coi==id_coi) ,_feature].iloc[0]
-            y_val.append(rak)
-            X_val.append(np.array(cv2.imread(_val_path + f, cv2.IMREAD_GRAYSCALE)))
-    
-
-    for f in os.listdir(_test_path):
-        f_slit = f.split('_')
-        id_coi = f_slit[6]
-        if len(df.loc[(df.id_coi==id_coi) ,_feature]) >0:
-            rak = df.loc[(df.id_coi==id_coi) ,_feature].iloc[0]
-            y_test.append(rak)
-            X_test.append(np.array(cv2.imread(_test_path + f, cv2.IMREAD_GRAYSCALE)))
-    
-        
-    train_size = len(X_train)
-    test_size = len(X_test)
-    val_size = len(X_val)
-     
-    X_train = np.array(X_train)
-    y_train = np.array(y_train)
-    
-    X_test = np.array(X_test)
-    y_test = np.array(y_test)
-    
-    X_val = np.array(X_val)
-    y_val = np.array(y_val)
-   
-    
-    im_width = X_train[0].shape[0]
-    im_height = X_train[0].shape[1]
-    X_train = X_train.reshape(train_size,im_width,im_height,1)
-    X_val = X_val.reshape(val_size,im_width,im_height,1)
-    X_test = X_test.reshape(test_size,im_width,im_height,1)
-    
-    
-    X_train = X_train.astype('float32')
-    X_val = X_val.astype('float32')
-    X_test = X_test.astype('float32')
-    
-    X_train /= 255
-    X_val /= 255
-    X_test /= 255
-    
-    nb_classes = 2
-    y_train = to_categorical(y_train, nb_classes)
-    y_val = to_categorical(y_val, nb_classes)
-    y_test = to_categorical(y_test, nb_classes)
-
-
-    return X_train, y_train, X_val, y_val, X_test, y_test        
-                    
+                  
 def img_to_predict(_file_path):
 
     X_val = np.array(cv2.imread(_file_path , cv2.IMREAD_GRAYSCALE))

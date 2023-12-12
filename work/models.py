@@ -16,6 +16,9 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn import metrics
 import numpy as np
 import utils.custom_logger as cl
+from keras.utils import custom_object_scope
+import keras
+from tensorflow.keras.applications import ResNet50, ResNet101, ResNet152
 
 logger = cl.get_logger()
 
@@ -277,12 +280,13 @@ def model_sequence_manual_2(_img_width, _img_height):
 
 def model_sequence_manual_3(_img_width, _img_height):
     models = []
+    names = ["ResNet50", "ResNet101", "ResNet152"]
                
-    models.append(model_cnn1(_img_width, _img_height))
-    models.append(model_cnn3(_img_width, _img_height))  
-    models.append(model_cnn5(_img_width, _img_height))  
+    models.append(model_ResNet50(_img_width, _img_height))
+    models.append(model_ResNet101(_img_width, _img_height))  
+    models.append(model_ResNet152(_img_width, _img_height))  
         
-    return models    
+    return names, models  
 
 def model_densenet201(_img_width, _img_height):
     
@@ -339,17 +343,40 @@ def model_VGG19(_img_width, _img_height):
 
 def model_ResNet50(_img_width, _img_height):
     
-    model = tf.keras.applications.ResNet50(
-        include_top=False,
-        weights=None,
-        input_tensor=None,
-        input_shape=(_img_width,_img_height, 1),
-        pooling=None,
-        classes=2,
-        classifier_activation="softmax")
- 
+    
+    base_model = ResNet50(weights=None, include_top=False, input_shape=(_img_width, _img_height, 1))
+
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(2, activation='softmax')(x)      
+    model = Model(inputs=base_model.input, outputs=predictions)
+
     return model
 
+def model_ResNet101(_img_width, _img_height):
+    
+    base_model = ResNet101(weights=None, include_top=False, input_shape=(_img_width, _img_height, 1))
+
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(2, activation='softmax')(x)      
+    model = Model(inputs=base_model.input, outputs=predictions)
+     
+    return model
+
+def model_ResNet152(_img_width, _img_height):
+    
+    base_model = ResNet152(weights=None, include_top=False, input_shape=(_img_width, _img_height, 1))
+
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(2, activation='softmax')(x)      
+    model = Model(inputs=base_model.input, outputs=predictions)
+    
+    return model
 
 def find_cutoff(target, predicted):
     fpr, tpr, t = metrics.roc_curve(target, predicted)
@@ -361,15 +388,23 @@ def find_cutoff(target, predicted):
 
 def model_predictor(_model, _X_test, _y_test):
     
+    y_base = _y_test
     _y_test = _y_test[:,1]
-    m_opt_predict = _model.predict(_X_test, verbose=0)[:,1]
-        
-    t = find_cutoff(_y_test,m_opt_predict)
     
+    y_predict_base = _model.predict(_X_test, verbose=0)
+    m_opt_predict = y_predict_base[:,1]
+    
+    t = find_cutoff(_y_test,m_opt_predict)
+
     m_opt_predict_binary = [1 if x >= t else 0 for x in m_opt_predict]
 
+    # for el in range(0, len(_y_test)):
+    #     print('true:', _y_test[el], 'predicted:', m_opt_predict[el], 'binary:', m_opt_predict_binary[el])
+        
+        
     conf_matrix = np.round(metrics.confusion_matrix(_y_test, m_opt_predict_binary),2)
     
+   
     accuracy = np.round(metrics.accuracy_score(_y_test, m_opt_predict_binary),2)
     sensitivity = np.round(metrics.recall_score(_y_test, m_opt_predict_binary),2)
     specificity = np.round(conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1]),2)
@@ -393,6 +428,14 @@ def model_predictor(_model, _X_test, _y_test):
     
     return res
 
+
+def model_load(_path):
+
+    with custom_object_scope({'focal_loss': focal_loss}):
+        m1 = load_model(_path)
+    
+    return m1    
+
 def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer, _model_name):
     
     
@@ -401,8 +444,9 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
     else:
         opt = SGD(learning_rate=_learning_rate)
       
-    #_model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
-    _model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
+    _model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
+    #_model.compile(optimizer = opt, loss='sparse_categorical_crossentropy', metrics=["accuracy"]) 
+    #_model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
     es = EarlyStopping(monitor='val_accuracy', mode='max', patience=10, restore_best_weights=True)
                     
     hist = _model.fit(_X_train, _y_train, 
@@ -420,8 +464,8 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
 
     res = model_predictor(_model, _X_test, _y_test)
 
-    _model.save(_model_name+'_'+str(res['auc']), save_format='tf')
-    
+    _model.save(_model_name+'_tf_'+str(res['auc']), save_format='tf')
+    _model.save(_model_name+'_h5_'+str(res['auc']), save_format='h5')
     return res
     
 
