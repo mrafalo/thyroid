@@ -1,3 +1,7 @@
+import os
+# os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0/bin")
+# os.add_dll_directory("C:/Program Files/NVIDIA/CUDNN/v8.9.7/bin")
+
 import pandas as pd
 import numpy as np
 import work.models as m
@@ -15,6 +19,8 @@ import importlib
 import utils
 import utils.custom_logger as cl
 import timeit
+import absl.logging
+absl.logging.set_verbosity(absl.logging.ERROR)
 
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -102,18 +108,17 @@ def reinitialize(model):
             
 def get_model_config():
     # res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
-    # learning_rates = [0.05, 0.01, 0.005]
-    # batch_sizes = [8, 16, 32]
-    # optimizers = ['Adam', 'SDG']
+    learning_rates = [0.01, 0.005]
+    batch_sizes = [8, 16, 32]
+    optimizers = ['Adam', 'SDG']
     res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
-    learning_rates = [0.005]
-    batch_sizes = [16]
-    optimizers = ['Adam'] 
+    # learning_rates = [0.005]
+    # batch_sizes = [16]
+    # optimizers = ['Adam'] 
     for l in learning_rates:
         for b in batch_sizes:
             for o in optimizers:        
                 new_row = {'learning_rate':l, 'batch_size':b, 'optimizer':o}
-                #res = res._append(new_row, ignore_index=True)
                 res = pd.concat([res, pd.DataFrame([new_row])], ignore_index=True)
                 
     return res
@@ -236,7 +241,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
     random.seed(SEED)
     np.random.seed(SEED)
     tf.keras.utils.set_random_seed(SEED)
-    
+
     
     if _filter == "none": 
         INPUT_PATH = MODELING_PATH + 'all_images/'
@@ -270,10 +275,10 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
         OUTPUT_VAL_PATH = VAL_PATH_FELZEN
 
     
-    _, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
+    _, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
     model_cnt = len(models)
     
-    logger.info('processing start... ' + 'models: ' + str(model_cnt) + 
+    logger.info('processing multiple models start... ' + 'models: ' + str(model_cnt) + 
                 ' cv iters: ' + str(_iters) + 
                 ' filter: ' + str(_filter) + 
                 ' feature: ' + _feature)
@@ -294,7 +299,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
             for m_num in range(model_cnt):
                 run_num = run_num + 1
                 start = timeit.default_timer()
-                names, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
+                names, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
                 m1 = models[m_num]
                 m1_name = names[m_num]
                 
@@ -312,7 +317,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
                                                    "model_name", "model_num", "iter_num", "filter",  "target_ratio_train", 
                                                    "target_ratio_test","accuracy", "auc", "sensitivity", "specificity",
                                                    "precision", "threshold", "train_dataset_size", "test_dataset_size",
-                                                   "learning_rate", "batch_size", "optimizer", "elapsed_mins"])
+                                                   "learning_rate", "batch_size", "optimizer", 'test_cases', 'test_positives', "elapsed_mins"])
                 
 
                 curr_date = datetime.now().strftime("%Y%m%d_%H%M")
@@ -339,9 +344,10 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
                            'learning_rate':c['learning_rate'],
                            'batch_size':c['batch_size'],
                            'optimizer':c['optimizer'],
+                           'test_cases':ev['test_cases'],
+                           'test_positives':ev['test_positives'],
                            'elapsed_mins': elapsed.seconds//1800}
     
-                #histories = histories._append(new_row, ignore_index=True)
                 histories = pd.concat([histories, pd.DataFrame([new_row])], ignore_index=True)
                 histories.to_csv('results/results.csv', mode='a', header=False, index=False)
                          
@@ -355,11 +361,11 @@ def main_loop(_epochs, _iters):
     logger.info("starting...")
     
     f = open('results/results.csv','w') 
-    f.write("date, target_feature, augument, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, elapsed_mins\n")
+    f.write("date, target_feature, augument, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, test_cases, test_positives, elapsed_mins\n")
     f.close()
     
     hist = train_model_multi_cv(_epochs, _iters, 'none', 'cancer', 0)
-    # hist = train_model_multi_cv(_epochs, _iters, 'none', 'cancer', 1)
+    hist = train_model_multi_cv(_epochs, _iters, 'none', 'cancer', 1)
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'cancer', 0)
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'cancer', 1)
     # hist = train_model_multi_cv(_epochs, _iters, 'canny', 'cancer',0)
@@ -387,4 +393,5 @@ def main_loop(_epochs, _iters):
 # importlib.reload(utils.image_manipulator)
 
 main_loop(5,1)
+
 

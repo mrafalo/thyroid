@@ -376,6 +376,8 @@ def model_predictor(_model, _X_test, _y_test):
     precision = np.round(metrics.precision_score(_y_test, m_opt_predict_binary),2)
     auc = np.round(metrics.roc_auc_score(_y_test, m_opt_predict),2)
     f1 = np.round(metrics.f1_score(_y_test, m_opt_predict_binary),2)
+    test_cases = len(_y_test)
+    test_positives = np.sum(_y_test)
     
     res = {
         'accuracy': accuracy,
@@ -384,7 +386,9 @@ def model_predictor(_model, _X_test, _y_test):
         'precision': precision,
         'f1': f1,
         'auc': auc,
-        'threshold': t
+        'threshold': t,
+        'test_cases': test_cases,
+        'test_positives': test_positives
     }
     
     return res
@@ -410,7 +414,7 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
     
     
     if es.stopped_epoch > 0:
-        logger.info("early stopped at epoch: " + str(es.stopped_epoch) + ' of ' + str(_epochs));
+        logger.info("Early stopped at epoch: " + str(es.stopped_epoch) + ' of ' + str(_epochs));
 
     #ev = _model.evaluate(_X_test, _y_test, verbose=False)
 
