@@ -1,4 +1,3 @@
-
 from keras.initializers import Constant
 from keras.layers import Input, Conv2D, Flatten, Activation, MaxPool2D, Dropout
 from keras.models import Model
@@ -391,6 +390,22 @@ def model_predictor(_model, _X_test, _y_test):
     y_base = _y_test
     _y_test = _y_test[:,1]
     
+    test_cases = len(_y_test)
+    test_positives = np.sum(_y_test)
+    
+    if test_positives==0:
+        return {
+        'accuracy': -1,
+        'sensitivity': -1,
+        'specificity': -1,
+        'precision': -1,
+        'f1': -1,
+        'auc': -1,
+        'threshold': -1,
+        'test_cases': test_cases,
+        'test_positives': test_positives
+        }
+        
     y_predict_base = _model.predict(_X_test, verbose=0)
     m_opt_predict = y_predict_base[:,1]
     

@@ -16,9 +16,9 @@ import yaml
 import logging
 import keras
 from matplotlib import pyplot as plt
-from xgboost import XGBClassifier
+
 from sklearn.metrics import confusion_matrix
-from keras.utils.vis_utils import plot_model
+#from keras.utils.vis_utils import plot_model
 
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
@@ -28,23 +28,36 @@ from sklearn import metrics
 from scipy.stats import chi2_contingency
 from sklearn import tree
 from sklearn.ensemble import RandomForestClassifier
-import plotly.express as px
-from plotly.subplots import make_subplots
-import plotly.figure_factory as ff
-import plotly.graph_objects as go
+
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-import xgboost as xgb
 
 from sklearn import tree
 from tabulate import tabulate
+
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
     BASE_PATH = cfg['BASE_PATH']
+    BASE_FILE_PATH = cfg['BASE_FILE_PATH']
+    MODELING_PATH = cfg['MODELING_PATH']
+    RAW_INPUT_PATH = cfg['RAW_INPUT_PATH']
+    ANNOTATION_INPUT_PATH = cfg['ANNOTATION_INPUT_PATH']
+    MODELING_INPUT_PATH = cfg['MODELING_INPUT_PATH']
+    
+    IMG_PATH_BASE = cfg['IMG_PATH_BASE']
+    IMG_PATH_BW = cfg['IMG_PATH_BW']
+    IMG_PATH_SOBEL = cfg['IMG_PATH_SOBEL']
+    IMG_PATH_HEAT = cfg['IMG_PATH_HEAT']
+    IMG_PATH_CANNY = cfg['IMG_PATH_CANNY']
+    IMG_PATH_FELZEN = cfg['IMG_PATH_FELZEN']
+    
     IMG_WIDTH = cfg['IMG_WIDTH']
     IMG_HEIGHT = cfg['IMG_HEIGHT']
 
 
-BASE_FILE_PATH = BASE_PATH + 'baza6.csv'
+BATCH_SIZE = 12
+BASE_LR = 0.001#1e-6
+SEED = 123
+
 
 ZMIENNE = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
        'echo_izoechogeniczna', 'echo_mieszana', 'budowa_lita',
@@ -191,54 +204,35 @@ def report_variables_vs_PTC():
             print("--------------------")
 
 
-def report_overview(_latex = False):
-    df = d.load_data_file(BASE_FILE_PATH)    
-    print("Liczba pacjentów: ", len(df), "liczba PTC:", len(df[df.label_cancer == "PTC"]), "liczba łagodnych:", len(df[df.label_cancer == "BENIGN"]))    
-    print("Pacjenci wg kategorii Bethesda i rodzaju nowotworu:")
-    tmp = pd.crosstab(df.label_cancer, df.BACC_Bethesda, margins = False) 
-    if _latex:
-        print(tmp.to_latex())
-    else:
-        print(tabulate(tmp,headers='firstrow',tablefmt='html'))
-        html = tabulate(tmp,headers='firstrow',tablefmt='html')
-        text_file = open("out.html", "w") 
-        text_file.write(html) 
-        text_file.close() 
 
-    print("Pacjenci wg płci:")
-    tmp = pd.crosstab(df.label_cancer, df.plec, margins = False) 
-    if _latex:
-        print(tmp.to_latex())
-    else:
-        print(tabulate(tmp,headers='firstrow',tablefmt='grid'))
-    
-def xgb_model():             
-    
-    df = d.load_data_file(BASE_FILE_PATH)
-    df1 = df[df.label_cancer.isin(['PTC'])]
-    df2 = df[df.rak == 0]
-    df = pd.concat([df1,df2])
 
-    X = df[ZMIENNE] # zmienne objaśniające
-    y = df.rak # zmienna objaśniana
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+# def xgb_model():             
     
-    np.random.seed(123)
-    m2 = xgb.XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', )
-    m2 = m2.fit(x_train,y_train)
-    m2_pred_proba = m2.predict_proba(x_test)[:,1]
-    m2_auc = roc_auc_score(y_test, m2_pred_proba)
-    m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
-    m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
-    m2_optimal_threshold = t[m2_optimal_idx]
-    m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
-    m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
-    m2_recall = accuracy_score(y_test, m2_pred_proba)
+#     df = d.load_data_file(BASE_FILE_PATH)
+#     df1 = df[df.label_cancer.isin(['PTC'])]
+#     df2 = df[df.rak == 0]
+#     df = pd.concat([df1,df2])
+
+#     X = df[ZMIENNE] # zmienne objaśniające
+#     y = df.rak # zmienna objaśniana
+#     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
     
-    dataset = pd.DataFrame({'feature': m2.get_booster().feature_names, 'importance': np.round(m2.feature_importances_,2)})
-    dataset=dataset.sort_values('importance', ascending=False).head(10)
-    print("AUC:", m2_auc)
-    print(dataset)
+#     np.random.seed(123)
+#     m2 = xgb.XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', )
+#     m2 = m2.fit(x_train,y_train)
+#     m2_pred_proba = m2.predict_proba(x_test)[:,1]
+#     m2_auc = roc_auc_score(y_test, m2_pred_proba)
+#     m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
+#     m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
+#     m2_optimal_threshold = t[m2_optimal_idx]
+#     m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
+#     m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
+#     m2_recall = accuracy_score(y_test, m2_pred_proba)
+    
+#     dataset = pd.DataFrame({'feature': m2.get_booster().feature_names, 'importance': np.round(m2.feature_importances_,2)})
+#     dataset=dataset.sort_values('importance', ascending=False).head(10)
+#     print("AUC:", m2_auc)
+#     print(dataset)
       
 def forest_model():
     df = d.load_data_file(BASE_FILE_PATH)
@@ -273,18 +267,39 @@ def forest_model():
     print(dataset)
           
 
+
+
+def report_overview(_latex = False):
+    df = d.load_data_file(BASE_FILE_PATH)    
+    print("Liczba pacjentów: ", len(df), "liczba PTC:", len(df[df.label_cancer == "PTC"]), "liczba łagodnych:", len(df[df.label_cancer == "BENIGN"]))    
+    print("Pacjenci wg kategorii Bethesda i rodzaju nowotworu:")
+    tmp = pd.crosstab(df.label_cancer, df.BACC_Bethesda, margins = False) 
+    if _latex:
+        print(tmp.to_latex())
+    else:
+        print(tabulate(tmp,headers='firstrow',tablefmt='html'))
+        html = tabulate(tmp,headers='firstrow',tablefmt='html')
+        text_file = open("out.html", "w") 
+        text_file.write(html) 
+        text_file.close() 
+
+    print("Pacjenci wg płci:")
+    tmp = pd.crosstab(df.label_cancer, df.plec, margins = False) 
+    if _latex:
+        print(tmp.to_latex())
+    else:
+        print(tabulate(tmp,headers='firstrow',tablefmt='grid'))
+    
+    print("Pacjenci wg cech:")
+    
+    for z in ['ksztalt_nieregularny', 'Zwapnienia_mikrozwapnienia', 'granice_zatarte', 'echo_gleboko_hipo', 'USG_AZT', 
+              'Zwapnienia_makrozwapnienia', 'torbka_modelowanie', 'echo_nieznacznie_hipo']:
+        tmp = df.groupby(z).size().reset_index(name='cnt')
+        
+        if _latex:
+            print(tmp.to_latex(),'\n')
+        else:
+            print(z,'\n')
+            print(tmp,'\n')
+
 report_overview(False)
-
-forest_model()
-import tensorflow as tf
-
-print(tf.version.VERSION)
-
-new_model = tf.keras.models.load_model('models/run/cnn1_cancer_none_5_0.8')
-
-m1 = m.model_cnn_base
-import graphviz
-import pydot
-plot_model(m1, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
-
-
