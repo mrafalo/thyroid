@@ -76,7 +76,7 @@ def get_model_config():
     return res
 
             
-def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _augument=0):
+def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="cancer", _augument=0):
     
     random.seed(SEED)
     np.random.seed(SEED)
@@ -90,7 +90,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
     if _filter == "bw": INPUT_PATH = IMG_PATH_BW
     if _filter == "felzen": INPUT_PATH = IMG_PATH_FELZEN
 
-    _, models = m.model_sequence_manual_3(IMG_WIDTH, IMG_HEIGHT)
+    _, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
     model_cnt = len(models)
     
     logger.info('processing multiple models start... ' + 'models: ' + str(model_cnt) + 
@@ -114,7 +114,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
             for m_num in range(model_cnt):
                 run_num = run_num + 1
                 start = timeit.default_timer()
-                names, models = m.model_sequence_manual_3(IMG_WIDTH, IMG_HEIGHT)
+                names, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
                 m1 = models[m_num]
                 m1_name = names[m_num]
                 
@@ -164,7 +164,7 @@ def train_model_multi_cv(_epochs, _iters, _filter="none", _feature="cancer", _au
                            'elapsed_mins': elapsed.seconds//1800}
     
                 histories = pd.concat([histories, pd.DataFrame([new_row])], ignore_index=True)
-                histories.to_csv('results/results.csv', mode='a', header=False, index=False)
+                histories.to_csv('results/'+_prefix+'_results.csv', mode='a', header=False, index=False)
                          
                 logger.info(new_row)
             
@@ -179,16 +179,16 @@ def main_loop(_prefix, _epochs, _iters):
     f.write("date, target_feature, augument, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, test_cases, test_positives, elapsed_mins\n")
     f.close()
     
-    # hist = train_model_multi_cv(_epochs, _iters, 'none', 'cancer', 0)
-    # hist = train_model_multi_cv(_epochs, _iters, 'none', 'cancer', 1)
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'cancer', 0)
-    hist = train_model_multi_cv(_epochs, _iters, 'heat', 'cancer', 1)
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'cancer',0)
-    hist = train_model_multi_cv(_epochs, _iters, 'canny', 'cancer',1)
-    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'cancer', 0)
-    hist = train_model_multi_cv(_epochs, _iters, 'bw', 'cancer', 1)
-    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'cancer', 0)
-    hist = train_model_multi_cv(_epochs, _iters, 'sobel', 'cancer', 1)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'none', 'cancer', 0)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'none', 'cancer', 1)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 0)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 1)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',0)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',1)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'bw', 'cancer', 0)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'bw', 'cancer', 1)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'sobel', 'cancer', 0)
+    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'sobel', 'cancer', 1)
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'ksztalt_nieregularny')
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'Zwapnienia_mikrozwapnienia')
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'granice_zatarte')
@@ -205,4 +205,4 @@ def main_loop(_prefix, _epochs, _iters):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop("resnet",40, 1)
+main_loop("cancer_filters",1, 1)

@@ -259,7 +259,8 @@ def model_sequence_manual_1(_img_width, _img_height):
 def model_sequence_manual_2(_img_width, _img_height):
     models = []
     names = ['VGG16', 'VGG19', 'denseNet201', 
-             'denseNet121', 'cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7']
+             'denseNet121', 'cnn1', 'cnn2', 'cnn3', 
+             'cnn4', 'cnn5', 'cnn6', 'cnn7', "ResNet50", "ResNet101", "ResNet152"]
                
 
     models.append(model_VGG16(_img_width, _img_height))
@@ -273,7 +274,11 @@ def model_sequence_manual_2(_img_width, _img_height):
     models.append(model_cnn5(_img_width, _img_height))
     models.append(model_cnn6(_img_width, _img_height))
     models.append(model_cnn7(_img_width, _img_height))      
-        
+    models.append(model_ResNet50(_img_width, _img_height))
+    models.append(model_ResNet101(_img_width, _img_height))  
+    models.append(model_ResNet152(_img_width, _img_height))      
+
+    
     return names, models
 
 
