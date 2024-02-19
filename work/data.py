@@ -317,7 +317,12 @@ def load_data_file(_data_file):
     df.loc[df.BACC_5==1, 'BACC_Bethesda']='kat5'
     df.loc[df.BACC_6==1, 'BACC_Bethesda']='kat6'
 
+    df.loc[df.tirads_2==1, 'tirads']='2'
+    df.loc[df.tirads_3==1, 'tirads']='3'
+    df.loc[df.tirads_4==1, 'tirads']='4'
+    df.loc[df.tirads_5==1, 'tirads']='5'
     
+    df['max_dim'] = df[['szerokosc', 'grubosc', 'dlugosc']].max(axis=1)
 
     return df
 

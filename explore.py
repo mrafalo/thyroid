@@ -10,11 +10,12 @@ import work.data as d
 import utils
 import utils.image_manipulator as im
 import tensorflow as tf
-from keras import backend as K
+#from keras import backend as K
+#import keras
+
 from tensorflow.keras.optimizers import RMSprop, Adam
 import yaml    
 import logging
-import keras
 from matplotlib import pyplot as plt
 
 from sklearn.metrics import confusion_matrix
@@ -33,6 +34,14 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 
 from sklearn import tree
 from tabulate import tabulate
+
+import plotly
+
+import plotly.io as pio
+import plotly.graph_objects as go
+import plotly.express as px
+import kaleido
+pio.renderers.default='svg'
 
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
@@ -120,7 +129,7 @@ def decision_tree_cv_ptc(_data, _iters, _zmienne):
 def random_forest_cv_PTC(_iters):
     
     df = d.load_data_file(BASE_FILE_PATH)
-    df1 = df[df.label_cancer.isin(['PTC'])]
+    df1 = df[df.rak == 1]
     df2 = df[df.rak == 0]
     df = pd.concat([df1,df2])
     
@@ -144,18 +153,18 @@ def random_forest_cv_PTC(_iters):
       m1_recall = accuracy_score(y_test, m1_pred_proba)
       
       
-      m2 = XGBClassifier(use_label_encoder=False)
-      m2 = m1.fit(x_train,y_train)
-      m2_pred_proba = m2.predict_proba(x_test)[:,1]
-      m2_auc = roc_auc_score(y_test, m2_pred_proba)
-      m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
-      m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
-      m2_optimal_threshold = t[m2_optimal_idx]
-      m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
-      m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
-      m2_recall = accuracy_score(y_test, m2_pred_proba)
+      # m2 = XGBClassifier(use_label_encoder=False)
+      # m2 = m1.fit(x_train,y_train)
+      # m2_pred_proba = m2.predict_proba(x_test)[:,1]
+      # m2_auc = roc_auc_score(y_test, m2_pred_proba)
+      # m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
+      # m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
+      # m2_optimal_threshold = t[m2_optimal_idx]
+      # m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
+      # m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
+      # m2_recall = accuracy_score(y_test, m2_pred_proba)
       
-      print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2), 'XGB: recall =', round(m2_recall,2), " auc =", round(m2_auc,2))
+      print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2))
 
 
 def report_variables_vs_typ_raka():
@@ -271,9 +280,11 @@ def forest_model():
 
 def report_overview(_latex = False):
     df = d.load_data_file(BASE_FILE_PATH)    
-    print("Liczba pacjentów: ", len(df), "liczba PTC:", len(df[df.label_cancer == "PTC"]), "liczba łagodnych:", len(df[df.label_cancer == "BENIGN"]))    
-    print("Pacjenci wg kategorii Bethesda i rodzaju nowotworu:")
-    tmp = pd.crosstab(df.label_cancer, df.BACC_Bethesda, margins = False) 
+    print("Liczba pacjentów: ", len(df), "liczba nowotworow złoliwych:", len(df[df.rak == 1]), "liczba łagodnych:", len(df[df.label_cancer == "BENIGN"]))    
+    
+    
+    print("Pacjenci wg rodzaju nowotworu i Bethesda:")
+    tmp = pd.crosstab(df.rak, df.BACC_Bethesda, margins = False) 
     if _latex:
         print(tmp.to_latex())
     else:
@@ -283,8 +294,22 @@ def report_overview(_latex = False):
         text_file.write(html) 
         text_file.close() 
 
+
+    print("Pacjenci wg rodzaju nowotworu i tirads:")
+    tmp = pd.crosstab(df.rak, df.tirads, margins = False) 
+    if _latex:
+        print(tmp.to_latex())
+    else:
+        print(tabulate(tmp,headers='firstrow',tablefmt='html'))
+        html = tabulate(tmp,headers='firstrow',tablefmt='html')
+        text_file = open("out.html", "w") 
+        text_file.write(html) 
+        text_file.close() 
+        
+        
+
     print("Pacjenci wg płci:")
-    tmp = pd.crosstab(df.label_cancer, df.plec, margins = False) 
+    tmp = pd.crosstab(df.rak, df.plec, margins = False) 
     if _latex:
         print(tmp.to_latex())
     else:
@@ -292,14 +317,58 @@ def report_overview(_latex = False):
     
     print("Pacjenci wg cech:")
     
-    for z in ['ksztalt_nieregularny', 'Zwapnienia_mikrozwapnienia', 'granice_zatarte', 'echo_gleboko_hipo', 'USG_AZT', 
-              'Zwapnienia_makrozwapnienia', 'torbka_modelowanie', 'echo_nieznacznie_hipo']:
+  
+    vars = []
+    cancer1 = []
+    cancer0 = []
+    for z in ZMIENNE:
         tmp = df.groupby(z).size().reset_index(name='cnt')
-        
-        if _latex:
-            print(tmp.to_latex(),'\n')
-        else:
-            print(z,'\n')
-            print(tmp,'\n')
+        vars.append(z)
+        cancer1.append(tmp.at[1,"cnt"])
+        cancer0.append(tmp.at[0,"cnt"])
 
-report_overview(False)
+    tmp = pd.DataFrame({
+        'Feature': vars,
+        'Benign': cancer0,
+        'Malignant': cancer1
+        })
+    
+    if _latex:
+        print(tmp.to_latex(),'\n')
+    else:
+        print(z,'\n')
+        print(tmp,'\n')
+        
+    return df
+
+
+df = report_overview(True)
+
+tmp = df.groupby("Zwapnienia_mikrozwapnienia").size().reset_index(name='cnt')
+tmp.at[1,"cnt"]
+
+
+tmp = df.groupby(['tirads']).agg({'max_dim': ['mean', 'count']})
+tmp.columns = [ ' '.join(str(i) for i in col) for col in tmp.columns]
+tmp.reset_index(inplace=True)
+fig = px.line(tmp, x='Customer_Age', y='Months_on_book mean', color="Card_Category", title="sample figure")
+fig.show()
+
+# fillcolor='rgba(26,150,65,0.5)'
+fig = px.histogram(df, x="max_dim", color="rak", 
+                   color_discrete_map = {0:'rgba(26,150,65,0.5)',1:'rgba(150,25,65,0.5)'},
+                   barmode='overlay')
+
+
+
+# rozkład wieku (histogram)
+
+# rozklady wymiarow - gestosci
+
+fig = px.box(df, x="rak", y="max_dim")
+fig.update_xaxes(title_text='Malignancy')
+fig.update_yaxes(title_text='Tumor size [mm]')
+fig.show()
+
+
+random_forest_cv_PTC(10);

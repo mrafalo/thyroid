@@ -107,7 +107,6 @@ def model_cnn2(_img_width, _img_height):
     model.add(MaxPool2D((2, 2), strides=(2, 2)))
     model.add(Conv2D(48, (7, 7), padding="same", activation="relu"))
     model.add(Dropout(0.5))
-    #model.add(Conv2D(filters=1,kernel_size=(5, 5),kernel_initializer="glorot_normal",bias_initializer=Constant(value=-0.9)))
     model.add(Flatten())
     model.add(Dense(2, activation='sigmoid'))
     
@@ -456,15 +455,20 @@ def model_load(_path):
     
     return m1    
 
-def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer, _model_name):
+def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _epochs, _learning_rate, _batch_size, _optimizer, _loss, _model_name):
     
     
     if _optimizer == 'Adam':
         opt = Adam(learning_rate=_learning_rate)
     else:
         opt = SGD(learning_rate=_learning_rate)
-      
-    _model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
+    
+    if _loss in ['categorical_crossentropy', 'sparse_categorical_crossentropy']:
+        _model.compile(optimizer = opt, loss=_loss, metrics=["accuracy"]) 
+    else:
+        _model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
+        
+    #_model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
     #_model.compile(optimizer = opt, loss='sparse_categorical_crossentropy', metrics=["accuracy"]) 
     #_model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
     es = EarlyStopping(monitor='val_accuracy', mode='max', patience=10, restore_best_weights=True)

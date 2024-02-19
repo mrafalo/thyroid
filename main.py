@@ -61,18 +61,20 @@ def reinitialize(model):
 def get_model_config():
     # res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
     #learning_rates = [0.01, 0.005]
-    # batch_sizes = [8, 16, 32]
-    # optimizers = ['Adam', 'SDG']
-    res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
+    batch_sizes = [8, 16, 32]
+    #optimizers = ['Adam', 'SDG']
+    res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer', 'loss'])
     learning_rates = [0.005]
-    batch_sizes = [16]
-    optimizers = ['Adam'] 
+    #batch_sizes = [16]
+    #optimizers = ['Adam'] 
+    losses = ['focal', 'sparse_categorical_crossentropy', 'categorical_crossentropy' ]
     for l in learning_rates:
         for b in batch_sizes:
-            for o in optimizers:        
-                new_row = {'learning_rate':l, 'batch_size':b, 'optimizer':o}
-                res = pd.concat([res, pd.DataFrame([new_row])], ignore_index=True)
-                
+            for o in optimizers:     
+                for lo in losses:     
+                    new_row = {'learning_rate':l, 'batch_size':b, 'optimizer':o, 'loss': lo}
+                    res = pd.concat([res, pd.DataFrame([new_row])], ignore_index=True)
+                    
     return res
 
             
@@ -121,7 +123,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
                 keras.backend.clear_session()
                 
                 model_name = "models/" + m1_name +"_" + _feature  + "_" + _filter + "_" + str(run_num)
-                ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer'], model_name);
+                ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer'], c['loss'], model_name);
                             
                 
                 stop = timeit.default_timer()
@@ -129,10 +131,10 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
                 elapsed = timedelta(minutes=stop-start)
 
                 histories = pd.DataFrame(columns =["date", "target_feature", "augument", "run_num", "total_runs", 
-                                                   "model_name", "model_num", "iter_num", "filter",  "target_ratio_train", 
+                                                   "model_name", "model_num", "iter_num", "epochs", "filter",  "target_ratio_train", 
                                                    "target_ratio_test","accuracy", "auc", "sensitivity", "specificity",
                                                    "precision", "threshold", "train_dataset_size", "test_dataset_size",
-                                                   "learning_rate", "batch_size", "optimizer", 'test_cases', 'test_positives', "elapsed_mins"])
+                                                   "learning_rate", "batch_size", "optimizer", 'loss', 'test_cases', 'test_positives', "elapsed_mins"])
                 
 
                 curr_date = datetime.now().strftime("%Y%m%d_%H%M")
@@ -145,6 +147,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
                            'model_name': m1_name,
                            'model_num':m_num+1,
                            'iter_num':i+1,
+                           'epochs': _epochs,
                            'filter':_filter, 
                            'target_ratio_train':round(sum(y_train[:,1])/len(y_train[:,1]),2),
                            'target_ratio_test':round(sum(y_test[:,1])/len(y_test[:,1]),2),
@@ -159,6 +162,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
                            'learning_rate':c['learning_rate'],
                            'batch_size':c['batch_size'],
                            'optimizer':c['optimizer'],
+                           'loss':c['loss'],
                            'test_cases':ev['test_cases'],
                            'test_positives':ev['test_positives'],
                            'elapsed_mins': elapsed.seconds//1800}
@@ -176,19 +180,19 @@ def main_loop(_prefix, _epochs, _iters):
     logger.info("starting...")
     
     f = open('results/'+_prefix+'_results.csv','w') 
-    f.write("date, target_feature, augument, run_num, total_runs, model_name, model_num, iter_num, filter,  target_ratio_train, target_ratio_test, accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, test_cases, test_positives, elapsed_mins\n")
+    f.write("date, target_feature, augument, run_num, total_runs, model_name, model_num, iter_num, epochs, filter,  target_ratio_train, target_ratio_test, accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, loss, test_cases, test_positives, elapsed_mins\n")
     f.close()
     
     hist = train_model_multi_cv(_prefix, _epochs, _iters, 'none', 'cancer', 0)
     hist = train_model_multi_cv(_prefix, _epochs, _iters, 'none', 'cancer', 1)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 0)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 1)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',0)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',1)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'bw', 'cancer', 0)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'bw', 'cancer', 1)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'sobel', 'cancer', 0)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'sobel', 'cancer', 1)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 0)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 1)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',0)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',1)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'bw', 'cancer', 0)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'bw', 'cancer', 1)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'sobel', 'cancer', 0)
+    # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'sobel', 'cancer', 1)
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'ksztalt_nieregularny')
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'Zwapnienia_mikrozwapnienia')
     # hist = train_model_multi_cv(_epochs, _iters, 'heat', 'granice_zatarte')
@@ -205,4 +209,4 @@ def main_loop(_prefix, _epochs, _iters):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop("cancer_filters",1, 1)
+main_loop("cancer_test1",1, 1)
