@@ -135,6 +135,7 @@ def random_forest_cv_PTC(_iters):
     
     X = df[ZMIENNE] # zmienne objaśniające
     y = df.rak # zmienna objaśniana
+    aucs = []
     
     np.random.seed(123)
 
@@ -152,7 +153,7 @@ def random_forest_cv_PTC(_iters):
       m1_pred_proba[m1_pred_proba >= m1_optimal_threshold] = 1
       m1_recall = accuracy_score(y_test, m1_pred_proba)
       
-      
+      aucs.append(m1_auc)
       # m2 = XGBClassifier(use_label_encoder=False)
       # m2 = m1.fit(x_train,y_train)
       # m2_pred_proba = m2.predict_proba(x_test)[:,1]
@@ -165,7 +166,9 @@ def random_forest_cv_PTC(_iters):
       # m2_recall = accuracy_score(y_test, m2_pred_proba)
       
       print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2))
-
+      
+      
+    return aucs
 
 def report_variables_vs_typ_raka():
     df = d.load_data_file(BASE_FILE_PATH)
@@ -371,4 +374,5 @@ fig.update_yaxes(title_text='Tumor size [mm]')
 fig.show()
 
 
-random_forest_cv_PTC(10);
+auc = random_forest_cv_PTC(100);
+np.mean(auc)

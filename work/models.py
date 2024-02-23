@@ -463,13 +463,12 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
     else:
         opt = SGD(learning_rate=_learning_rate)
     
-    if _loss in ['categorical_crossentropy', 'sparse_categorical_crossentropy']:
+    if _loss != 'focal_loss':
         _model.compile(optimizer = opt, loss=_loss, metrics=["accuracy"]) 
     else:
         _model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
         
     #_model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
-    #_model.compile(optimizer = opt, loss='sparse_categorical_crossentropy', metrics=["accuracy"]) 
     #_model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
     es = EarlyStopping(monitor='val_accuracy', mode='max', patience=10, restore_best_weights=True)
                     

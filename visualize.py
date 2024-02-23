@@ -155,3 +155,4 @@ for _ in range(square):
 		ix += 1
 # show the figure
 pyplot.show()
+

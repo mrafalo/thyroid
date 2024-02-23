@@ -1,6 +1,10 @@
 import os
-# os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0/bin")
-# os.add_dll_directory("C:/Program Files/NVIDIA/CUDNN/v8.9.7/bin")
+
+if os.path.exists("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0/bin"):
+    os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0/bin")
+
+if os.path.exists("C:/Program Files/NVIDIA/CUDNN/v8.9.7/bin"):
+    os.add_dll_directory("C:/Program Files/NVIDIA/CUDNN/v8.9.7/bin")
 
 import pandas as pd
 import numpy as np
@@ -40,14 +44,12 @@ with open(r'config.yaml') as file:
     
     IMG_WIDTH = cfg['IMG_WIDTH']
     IMG_HEIGHT = cfg['IMG_HEIGHT']
-
-
+    CV_ITERATIONS = cfg['CV_ITERATIONS']
+    EPOCHS = cfg['EPOCHS']
 
 logger = cl.get_logger()
-BATCH_SIZE = 12
-BASE_LR = 0.001#1e-6
-SEED = 123
 
+SEED = 123
 
 def reinitialize(model):
     for l in model.layers:
@@ -59,15 +61,21 @@ def reinitialize(model):
             l.recurrent_kernel.assign(l.recurrent_initializer(tf.shape(l.recurrent_kernel)))
             
 def get_model_config():
-    # res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer'])
+    
     #learning_rates = [0.01, 0.005]
-    batch_sizes = [8, 16, 32]
-    #optimizers = ['Adam', 'SDG']
-    res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer', 'loss'])
     learning_rates = [0.005]
-    #batch_sizes = [16]
+    
+    #batch_sizes = [8, 16, 32]
+    batch_sizes = [16]
+        
+    optimizers = ['Adam', 'SDG']
     #optimizers = ['Adam'] 
-    losses = ['focal', 'sparse_categorical_crossentropy', 'categorical_crossentropy' ]
+
+    losses = ['focal_loss', 'binary_crossentropy', 'squared_hinge', 'categorical_hinge', 'kl_divergence', 'categorical_crossentropy' ]
+    #losses = ['kl_divergence']
+    
+    res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer', 'loss'])
+
     for l in learning_rates:
         for b in batch_sizes:
             for o in optimizers:     
@@ -78,7 +86,7 @@ def get_model_config():
     return res
 
             
-def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="cancer", _augument=0):
+def train_model_multi_cv(_res_filename, _prefix, _epochs, _iters, _filter="none", _feature="cancer", _augument=0):
     
     random.seed(SEED)
     np.random.seed(SEED)
@@ -92,7 +100,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
     if _filter == "bw": INPUT_PATH = IMG_PATH_BW
     if _filter == "felzen": INPUT_PATH = IMG_PATH_FELZEN
 
-    _, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+    _, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
     model_cnt = len(models)
     
     logger.info('processing multiple models start... ' + 'models: ' + str(model_cnt) + 
@@ -116,7 +124,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
             for m_num in range(model_cnt):
                 run_num = run_num + 1
                 start = timeit.default_timer()
-                names, models = m.model_sequence_manual_2(IMG_WIDTH, IMG_HEIGHT)
+                names, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
                 m1 = models[m_num]
                 m1_name = names[m_num]
                 
@@ -130,7 +138,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
 
                 elapsed = timedelta(minutes=stop-start)
 
-                histories = pd.DataFrame(columns =["date", "target_feature", "augument", "run_num", "total_runs", 
+                histories = pd.DataFrame(columns =["date", "img_size", "target_feature", "augument", "run_num", "total_runs", 
                                                    "model_name", "model_num", "iter_num", "epochs", "filter",  "target_ratio_train", 
                                                    "target_ratio_test","accuracy", "auc", "sensitivity", "specificity",
                                                    "precision", "threshold", "train_dataset_size", "test_dataset_size",
@@ -140,6 +148,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
                 curr_date = datetime.now().strftime("%Y%m%d_%H%M")
    
                 new_row = {'date': curr_date,
+                           'img_size': str(IMG_WIDTH) + "x" + str(IMG_WIDTH), 
                            'target_feature': _feature,
                            'augument': _augument,
                            'run_num': run_num,
@@ -168,7 +177,7 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
                            'elapsed_mins': elapsed.seconds//1800}
     
                 histories = pd.concat([histories, pd.DataFrame([new_row])], ignore_index=True)
-                histories.to_csv('results/'+_prefix+'_results.csv', mode='a', header=False, index=False)
+                histories.to_csv(_res_filename, mode='a', header=False, index=False)
                          
                 logger.info(new_row)
             
@@ -177,14 +186,20 @@ def train_model_multi_cv(_prefix, _epochs, _iters, _filter="none", _feature="can
 
 
 def main_loop(_prefix, _epochs, _iters):
-    logger.info("starting...")
+    logger.info("starting... epochs: " + str(_epochs) + " cv iterations: " + str(_iters))
+    curr_date = datetime.now().strftime("%Y%m%d_%H%M")
     
-    f = open('results/'+_prefix+'_results.csv','w') 
-    f.write("date, target_feature, augument, run_num, total_runs, model_name, model_num, iter_num, epochs, filter,  target_ratio_train, target_ratio_test, accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size, test_dataset_size, learning_rate, batch_size, optimizer, loss, test_cases, test_positives, elapsed_mins\n")
+    result_filename = 'results/' + curr_date + _prefix+'_results.csv'
+    f = open(result_filename,'w') 
+    f.write("date, img_size, target_feature, augument, run_num, total_runs, model_name, \
+            model_num, iter_num, epochs, filter,  target_ratio_train, target_ratio_test, \
+            accuracy, auc, sensitivity, specificity, precision, threshold, train_dataset_size,\
+            test_dataset_size, learning_rate, batch_size, optimizer, loss, test_cases, test_positives, \
+            elapsed_mins\n")
     f.close()
     
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'none', 'cancer', 0)
-    hist = train_model_multi_cv(_prefix, _epochs, _iters, 'none', 'cancer', 1)
+    hist = train_model_multi_cv(result_filename, _prefix, _epochs, _iters, 'none', 'cancer', 0)
+    #hist = train_model_multi_cv(result_filename, _prefix, _epochs, _iters, 'none', 'cancer', 1)
     # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 0)
     # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'heat', 'cancer', 1)
     # hist = train_model_multi_cv(_prefix, _epochs, _iters, 'canny', 'cancer',0)
@@ -209,4 +224,4 @@ def main_loop(_prefix, _epochs, _iters):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-main_loop("cancer_test1",1, 1)
+main_loop("cancer_loss", EPOCHS, CV_ITERATIONS)
