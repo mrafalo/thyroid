@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['main.py', '..\\test.py', 'explore.py', 'work\\models.py', 'results\\resnet_results.csv', 'config.yaml', 'work\\data.py', 'visualize.py', 'vit_models.py', '.gitignore', 'results\\20240222_2257cancer_loss_results.csv']
+recent_files = ['main.py', 'config.yaml', 'work\\data.py', 'utils\\custom_logger.py', 'model_test.py', 'work\\models.py']
 
