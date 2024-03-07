@@ -1,38 +1,52 @@
 import os
+
 if os.path.exists("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0/bin"):
     os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0/bin")
 
 if os.path.exists("C:/Program Files/NVIDIA/CUDNN/v8.9.7/bin"):
     os.add_dll_directory("C:/Program Files/NVIDIA/CUDNN/v8.9.7/bin")
-    
-import numpy as np
+
 import pandas as pd
-import work
+import numpy as np
 import work.models as m
 import work.data as d
-import yaml    
-import importlib
-from datetime import datetime
+import work
 import tensorflow as tf
+from tensorflow.keras.optimizers import RMSprop, Adam
+import yaml    
+from datetime import datetime
+import utils
+import keras
 import random
+from datetime import timedelta
+import importlib
 import utils
 import utils.custom_logger as cl
-from sklearn.decomposition import FastICA
-import glob
-import time
-
-logger = cl.get_logger()
+import timeit
+import absl.logging
+absl.logging.set_verbosity(absl.logging.ERROR)
 
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
-    TELCO_FILE = cfg['TELCO_FILE']
-    SEED = cfg['SEED']
+    BASE_PATH = cfg['BASE_PATH']
+    BASE_FILE_PATH = cfg['BASE_FILE_PATH']
+    MODELING_PATH = cfg['MODELING_PATH']
+    RAW_INPUT_PATH = cfg['RAW_INPUT_PATH']
+    ANNOTATION_INPUT_PATH = cfg['ANNOTATION_INPUT_PATH']
+    MODELING_INPUT_PATH = cfg['MODELING_INPUT_PATH']
+    
+    IMG_PATH_BASE = cfg['IMG_PATH_BASE']
+    IMG_PATH_BW = cfg['IMG_PATH_BW']
+    IMG_PATH_SOBEL = cfg['IMG_PATH_SOBEL']
+    IMG_PATH_HEAT = cfg['IMG_PATH_HEAT']
+    IMG_PATH_CANNY = cfg['IMG_PATH_CANNY']
+    IMG_PATH_FELZEN = cfg['IMG_PATH_FELZEN']
+    
+    IMG_WIDTH = cfg['IMG_WIDTH']
+    IMG_HEIGHT = cfg['IMG_HEIGHT']
+    CV_ITERATIONS = cfg['CV_ITERATIONS']
     EPOCHS = cfg['EPOCHS']
-    SAMPLE_SIZE = cfg['SAMPLE_SIZE']
-    ITERATIONS = cfg['ITERATIONS']
-    MODEL_CONFIG_FILE = cfg['MODEL_CONFIG_FILE']
 
-<<<<<<< HEAD
 logger = cl.get_logger()
 
 SEED = 123
@@ -90,13 +104,10 @@ def generte_model_config(_res_filename):
     return histories
 
 def get_model_config():
-=======
-def train_models(_X, _y):
->>>>>>> eea28a252afd4e7e9564e8c7e1c5d17277f6721b
     
-    res = pd.DataFrame(columns = ['model', 'mse', 'mape', 'r2'])
+    #learning_rates = [0.01, 0.005]
+    learning_rates = [0.005]
     
-<<<<<<< HEAD
     #batch_sizes = [8, 16, 32]
     batch_sizes = [16]
         
@@ -133,102 +144,118 @@ def get_model_config_old():
         
     optimizers = ['Adam', 'SDG']
     #optimizers = ['Adam'] 
-=======
-    df_preds = pd.DataFrame({'y_actual': _y})
-    res = pd.DataFrame(columns = ['model', 'mse', 'mape', 'r2'])
->>>>>>> eea28a252afd4e7e9564e8c7e1c5d17277f6721b
 
-    model_cfg = pd.read_csv(MODEL_CONFIG_FILE, sep=";")
-    for _,c in model_cfg.iterrows():
-        logger.info("model " + c['model_name'] + " training start dataset size: " + str(len(_X)))
-        
-        sizes = [int(num) for num in c['sizes'].split(',')]
-        activations = [ss for ss in c['activations'].split(',')]
-        m1 = m.model_nn_custom(c['layers'], sizes, activations, len(_X.columns))
-        
-        mse, mape, r2, preds = m.model_fiter(m1, _X, _y, _X, _y, False)
+    losses = ['focal_loss', 'binary_crossentropy', 'squared_hinge', 'categorical_hinge', 'kl_divergence', 'categorical_crossentropy' ]
+    #losses = ['kl_divergence']
     
-        new_row = {'model':c['model_name'], 'mse':mse, 'mape':mape, 'r2': r2}
-        res = pd.concat([res, pd.DataFrame([new_row])], ignore_index=True)    
-        df_preds[c['model_name']] = preds
-        
-        logger.info("model " + c['model_name'] + " training finished...")
-                
-    return df_preds, res
+    res = pd.DataFrame(columns = ['learning_rate', 'batch_size', 'optimizer', 'loss'])
 
-def ica_results(_mask):
-    _mask = 'ica_res*.csv'
-    path_pattern = 'results/' + _mask
-    ica_files = glob.glob(path_pattern)
-    
-    for f in ica_files:
-        df = pd.read_csv(f, sep=';')
-        model_columns = [x for x in list(df.columns) if x not in ('scenario', 'predictions_file')]
-        number_of_components = len(model_columns)
-        
-        base = df.loc[df.scenario == 'mse_base',model_columns].values
-        components = df.loc[df.scenario != 'mse_base',model_columns].values
-        
-        for i in range(number_of_components):
-            mse_reduction_prc = (components[i,:] - base) / base
+    for l in learning_rates:
+        for b in batch_sizes:
+            for o in optimizers:     
+                for lo in losses:     
+                    new_row = {'learning_rate':l, 'batch_size':b, 'optimizer':o, 'loss': lo}
+                    res = pd.concat([res, pd.DataFrame([new_row])], ignore_index=True)
+                    
+    return res
+
             
-            if np.mean(mse_reduction_prc) < 0:
-                print(f, np.mean(mse_reduction_prc))
-        
-
-def ica_iterator(_predictions_file, _iter):
+def train_model_multi_cv(_res_filename, _prefix, _epochs, _iters, _filter="none", _feature="cancer", _augument=0):
     
-    df = pd.read_csv('results/' + _predictions_file, sep=';')
-
-    y_actual = df['y_actual'].values
-    
-    x = df.drop('y_actual', axis=1).values
-    components = x.shape[1]
-    
-    ica = FastICA()
-    y = ica.fit_transform(x) 
-    mses = np.zeros((components + 1,components))
-    
-    scenarios = [] 
-    scenarios.append('mse_base')
-    
-    for j in range(components):
-        mse = m.mse_score(y_actual, x.T[j])
-        print(mse)
-        mses[0,j] = round(mse)
-
-    for i in range(components):
-        z = y.copy()
-        z[:,i] = 0
-        scenarios.append('mse_s_' + str(i))
-        
-        xp = ica.inverse_transform(z)
-        for j in range(components):
-            mse = m.mse_score(y_actual, xp[:,j])
-            mses[i+1,j] = round(mse)
-    
-    res = pd.DataFrame(mses, columns=df.drop('y_actual', axis=1).columns)
-    tmp = pd.DataFrame(scenarios, columns=['scenario'])   
-    res_final = pd.concat([tmp, res], ignore_index=True, axis=1)
-    res_final.columns =  list(tmp.columns)+list(res.columns)
-    res_final['predictions_file'] = _predictions_file
-    curr_date = datetime.now().strftime("%Y%m%d_%H%M")
-    
-    res_final.to_csv("results/ica_result_" + str(_iter) + "_"+ curr_date + ".csv", mode='w', header=True, index=False, sep=";")
-    
-def main_loop():
-    
-    logger.info("starting... epochs: " + str(EPOCHS))
-     
-    np.random.seed(m.SEED)
-    tf.keras.utils.set_random_seed(m.SEED)
     random.seed(SEED)
-    start = time.time()
+    np.random.seed(SEED)
+    tf.keras.utils.set_random_seed(SEED)
 
-    for i in range(ITERATIONS):
-        logger.info("starting... iteration: " + str(i+1) + "/" + str(ITERATIONS))
+    
+    if _filter == "none": INPUT_PATH = IMG_PATH_BASE
+    if _filter == "canny": INPUT_PATH = IMG_PATH_CANNY
+    if _filter == "heat": INPUT_PATH = IMG_PATH_HEAT
+    if _filter == "sobel": INPUT_PATH = IMG_PATH_SOBEL
+    if _filter == "bw": INPUT_PATH = IMG_PATH_BW
+    if _filter == "felzen": INPUT_PATH = IMG_PATH_FELZEN
+
+    _, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
+    model_cnt = len(models)
+    
+    logger.info('processing multiple models start... ' + 'models: ' + str(model_cnt) + 
+                ' cv iters: ' + str(_iters) + 
+                ' filter: ' + str(_filter) + 
+                ' feature: ' + _feature)
+    
+    config = get_model_config()
+    
+    total_runs = _iters * len(config) * model_cnt         
+    run_num = 0
+    for i in range(_iters):
         
-<<<<<<< HEAD
+        if _feature=='cancer':
+            X_train, y_train, X_val, y_val, X_test, y_test = d.split_data_4cancer(BASE_FILE_PATH, INPUT_PATH, _augument, 0.15, 0.1, SEED )
+        else:
+            X_train, y_train, X_val, y_val, X_test, y_test = d.split_data_4feature(BASE_FILE_PATH, INPUT_PATH, _augument, 0.15, 0.1, _feature, SEED )
+            
+        for idx, c in config.iterrows():
+            
+            for m_num in range(model_cnt):
+                run_num = run_num + 1
+                start = timeit.default_timer()
+                names, models = m.model_sequence_manual_1(IMG_WIDTH, IMG_HEIGHT)
+                m1 = models[m_num]
+                m1_name = names[m_num]
+                
+                keras.backend.clear_session()
+                
+                model_name = "models/" + m1_name +"_" + _feature  + "_" + _filter + "_" + str(run_num)
+                ev = m.model_fitter(m1, X_train, y_train, X_val, y_val, X_test, y_test, _epochs, c['learning_rate'], c['batch_size'], c['optimizer'], c['loss'], model_name);
+                            
+                
+                stop = timeit.default_timer()
+
+                elapsed = timedelta(minutes=stop-start)
+
+                histories = pd.DataFrame(columns =["date", "img_size", "target_feature", "augument", "run_num", "total_runs", 
+                                                   "model_name", "model_num", "iter_num", "epochs", "filter",  "target_ratio_train", 
+                                                   "target_ratio_test","accuracy", "auc", "sensitivity", "specificity",
+                                                   "precision", "threshold", "train_dataset_size", "test_dataset_size",
+                                                   "learning_rate", "batch_size", "optimizer", 'loss', 'test_cases', 'test_positives', "elapsed_mins"])
+                
+
+                curr_date = datetime.now().strftime("%Y%m%d_%H%M")
+   
+                new_row = {'date': curr_date,
+                           'img_size': str(IMG_WIDTH) + "x" + str(IMG_WIDTH), 
+                           'target_feature': _feature,
+                           'augument': _augument,
+                           'run_num': run_num,
+                           'total_runs': total_runs,
+                           'model_name': m1_name,
+                           'model_num':m_num+1,
+                           'iter_num':i+1,
+                           'epochs': _epochs,
+                           'filter':_filter, 
+                           'target_ratio_train':round(sum(y_train[:,1])/len(y_train[:,1]),2),
+                           'target_ratio_test':round(sum(y_test[:,1])/len(y_test[:,1]),2),
+                           'accuracy': ev['accuracy'],
+                           'auc': ev['auc'],
+                           'sensitivity': ev['sensitivity'],
+                           'specificity': ev['specificity'],
+                           'precision': ev['precision'],
+                           'threshold': ev['threshold'],
+                           'train_dataset_size':len(y_train),
+                           'test_dataset_size':len(y_test),
+                           'learning_rate':c['learning_rate'],
+                           'batch_size':c['batch_size'],
+                           'optimizer':c['optimizer'],
+                           'loss':c['loss'],
+                           'test_cases':ev['test_cases'],
+                           'test_positives':ev['test_positives'],
+                           'elapsed_mins': elapsed.seconds//1800}
+    
+                histories = pd.concat([histories, pd.DataFrame([new_row])], ignore_index=True)
+                histories.to_csv(_res_filename, mode='a', header=False, index=False)
+                         
+                logger.info(new_row)
+            
+        
     return 1
 
 def result_found(_df, _c):
@@ -341,35 +368,13 @@ def main_loop(_config_file, _result_file, _epochs, _iters):
     logger.info("training loop starting... epochs: " + str(_epochs) + " cv iterations: " + str(_iters))
     train_cv(_config_file, _result_file, _epochs, _iters)
     logger.info("training finished!")
-=======
-        X_train, y_train, X_test, y_test = d.get_data();
-    
-        res_preds, res_summary = train_models(X_train, y_train)
-    
-        curr_date = datetime.now().strftime("%Y%m%d_%H%M")
-        predictions_file = "models_predictions_" + str(i) + " _" + curr_date + ".csv"
-        res_preds.to_csv("results/" + predictions_file, mode='w', header=True, index=False, sep=";")
-        res_summary.to_csv("results/models_summary_" + str(i+1) + " _" + curr_date + ".csv", mode='w', header=True, index=False, sep=";")
-        
-        ica_iterator(predictions_file, i+1)
-        logger.info("done... iteration: " + str(i+1) + "/" + str(ITERATIONS))
-        
-    stop = time.time()
-    
-    elapsed_sec = stop-start
-    logger.info("training finished!, elapsed: " + str(elapsed_sec//60) + " minutes")
->>>>>>> eea28a252afd4e7e9564e8c7e1c5d17277f6721b
 
 # importlib.reload(work.models)
 # importlib.reload(work.data)
+# importlib.reload(utils.image_manipulator)
 
-<<<<<<< HEAD
 #generte_model_config('config/config.csv')
 
 
 main_loop("config/config.csv", 'config/results5.csv', 1, 2)
 
-=======
-
-main_loop()
->>>>>>> eea28a252afd4e7e9564e8c7e1c5d17277f6721b

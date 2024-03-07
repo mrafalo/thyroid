@@ -1,7 +1,7 @@
 import logging
 
 def get_logger():
-    logger = logging.getLogger('ica')
+    logger = logging.getLogger('thyroid')
     logger.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s(%(name)s) %(levelname)s: %(message)s')

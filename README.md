@@ -1,1 +1,1 @@
-# Deep Learning System for Noise Elimination Using Alpha Divergence
+# thyroid
