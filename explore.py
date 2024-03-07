@@ -126,7 +126,7 @@ def decision_tree_cv_ptc(_data, _iters, _zmienne):
       
     return m1
 
-def random_forest_cv_PTC(_iters):
+def random_forest_cv(_iters):
     
     df = d.load_data_file(BASE_FILE_PATH)
     df1 = df[df.rak == 1]
@@ -135,7 +135,7 @@ def random_forest_cv_PTC(_iters):
     
     X = df[ZMIENNE] # zmienne objaśniające
     y = df.rak # zmienna objaśniana
-    aucs = []
+    r = []
     
     np.random.seed(123)
 
@@ -144,31 +144,15 @@ def random_forest_cv_PTC(_iters):
       
       m1 = RandomForestClassifier()
       m1 = m1.fit(x_train,y_train)
-      m1_pred_proba = m1.predict_proba(x_test)[:,1]
-      m1_auc = roc_auc_score(y_test, m1_pred_proba)
-      m1_fpr, m1_tpr, t = metrics.roc_curve(y_test,  m1_pred_proba)
-      m1_optimal_idx = np.argmax(m1_tpr - m1_fpr)
-      m1_optimal_threshold = t[m1_optimal_idx]
-      m1_pred_proba[m1_pred_proba < m1_optimal_threshold] = 0
-      m1_pred_proba[m1_pred_proba >= m1_optimal_threshold] = 1
-      m1_recall = accuracy_score(y_test, m1_pred_proba)
       
-      aucs.append(m1_auc)
-      # m2 = XGBClassifier(use_label_encoder=False)
-      # m2 = m1.fit(x_train,y_train)
-      # m2_pred_proba = m2.predict_proba(x_test)[:,1]
-      # m2_auc = roc_auc_score(y_test, m2_pred_proba)
-      # m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
-      # m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
-      # m2_optimal_threshold = t[m2_optimal_idx]
-      # m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
-      # m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
-      # m2_recall = accuracy_score(y_test, m2_pred_proba)
+      res = m.model_predictor_scikit(m1, x_test, y_test)
       
-      print('forest: recall =', round(m1_recall,2), " auc =", round(m1_auc,2))
+      r.append(res)
+
+      print(res)
       
       
-    return aucs
+    return pd.DataFrame(r)
 
 def report_variables_vs_typ_raka():
     df = d.load_data_file(BASE_FILE_PATH)
@@ -345,34 +329,37 @@ def report_overview(_latex = False):
     return df
 
 
-df = report_overview(True)
 
-tmp = df.groupby("Zwapnienia_mikrozwapnienia").size().reset_index(name='cnt')
-tmp.at[1,"cnt"]
+# importlib.reload(work.models)
+# importlib.reload(work.data)
+# importlib.reload(utils.image_manipulator)
+
+def result_found(_df, _c):
+    
+    founded = _df[
+        (_df['loss_function'] == _c['loss_function']) & 
+        (_df['model_name'] == _c['model_name']) &
+        (_df['learning_rate'] == _c['learning_rate']) &
+        (_df['optimizer'] == _c['optimizer']) &
+        (_df['img_size'] == _c['img_size']) &
+        (_df['batch_size'] == _c['batch_size']) &
+        (not _df['status'].isna().any())
+        ]
+    
+    if len(founded)>0: 
+        return True
+    else:
+        return False
+    
+
+df = pd.read_csv('results/results4.1.csv', sep=";")
+cfg = pd.read_csv('results/config.csv', sep=";")
+
+for i, c in cfg.iterrows():
+    if result_found(df, c):
+        print('good')
+    
+  
 
 
-tmp = df.groupby(['tirads']).agg({'max_dim': ['mean', 'count']})
-tmp.columns = [ ' '.join(str(i) for i in col) for col in tmp.columns]
-tmp.reset_index(inplace=True)
-fig = px.line(tmp, x='Customer_Age', y='Months_on_book mean', color="Card_Category", title="sample figure")
-fig.show()
-
-# fillcolor='rgba(26,150,65,0.5)'
-fig = px.histogram(df, x="max_dim", color="rak", 
-                   color_discrete_map = {0:'rgba(26,150,65,0.5)',1:'rgba(150,25,65,0.5)'},
-                   barmode='overlay')
-
-
-
-# rozkład wieku (histogram)
-
-# rozklady wymiarow - gestosci
-
-fig = px.box(df, x="rak", y="max_dim")
-fig.update_xaxes(title_text='Malignancy')
-fig.update_yaxes(title_text='Tumor size [mm]')
-fig.show()
-
-
-auc = random_forest_cv_PTC(100);
-np.mean(auc)
+tmp.to_csv('results/results4.1.csv', sep=";")

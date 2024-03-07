@@ -255,6 +255,9 @@ def model_sequence_manual_1(_img_width, _img_height):
         
     return names, models
 
+def get_model_by_name(_model_name,_img_width, _img_height ):
+    return model_cnn1(_img_width, _img_height)
+    
 def model_sequence_manual_2(_img_width, _img_height):
     models = []
     names = ['VGG16', 'VGG19', 'denseNet201', 
@@ -281,6 +284,7 @@ def model_sequence_manual_2(_img_width, _img_height):
     return names, models
 
 
+
 def model_sequence_manual_3(_img_width, _img_height):
     models = []
     names = ["ResNet50", "ResNet101", "ResNet152"]
@@ -290,6 +294,31 @@ def model_sequence_manual_3(_img_width, _img_height):
     models.append(model_ResNet152(_img_width, _img_height))  
         
     return names, models  
+
+def model_sequence_manual_ALL(_img_width, _img_height):
+    models = []
+    names = ['VGG16', 'VGG19', 'denseNet201', 
+             'denseNet121', 'cnn1', 'cnn2', 'cnn3', 
+             'cnn4', 'cnn5', 'cnn6', 'cnn7', "ResNet50", "ResNet101", "ResNet152"]
+               
+
+    models.append(model_VGG16(_img_width, _img_height))
+    models.append(model_VGG19(_img_width, _img_height))
+    models.append(model_densenet201(_img_width, _img_height))
+    models.append(model_densenet121(_img_width, _img_height))
+    models.append(model_cnn1(_img_width, _img_height))
+    models.append(model_cnn2(_img_width, _img_height))
+    models.append(model_cnn3(_img_width, _img_height))
+    models.append(model_cnn4(_img_width, _img_height))
+    models.append(model_cnn5(_img_width, _img_height))
+    models.append(model_cnn6(_img_width, _img_height))
+    models.append(model_cnn7(_img_width, _img_height))      
+    models.append(model_ResNet50(_img_width, _img_height))
+    models.append(model_ResNet101(_img_width, _img_height))  
+    models.append(model_ResNet152(_img_width, _img_height))      
+
+    
+    return names, models
 
 def model_densenet201(_img_width, _img_height):
     
@@ -448,6 +477,60 @@ def model_predictor(_model, _X_test, _y_test):
     return res
 
 
+def model_predictor_scikit(_model, _X_test, _y_test):
+    
+    y_base = _y_test
+
+    test_cases = len(_y_test)
+    test_positives = np.sum(_y_test)
+    
+    if test_positives==0:
+        return {
+        'accuracy': -1,
+        'sensitivity': -1,
+        'specificity': -1,
+        'precision': -1,
+        'f1': -1,
+        'auc': -1,
+        'threshold': -1,
+        'test_cases': test_cases,
+        'test_positives': test_positives
+        }
+    
+    y_predict_base = _model.predict_proba(_X_test)
+    
+    m_opt_predict = y_predict_base[:,1]
+    
+    t = find_cutoff(_y_test,m_opt_predict)
+
+    m_opt_predict_binary = [1 if x >= t else 0 for x in m_opt_predict]
+ 
+    conf_matrix = np.round(metrics.confusion_matrix(_y_test, m_opt_predict_binary),2)
+    
+   
+    accuracy = np.round(metrics.accuracy_score(_y_test, m_opt_predict_binary),2)
+    sensitivity = np.round(metrics.recall_score(_y_test, m_opt_predict_binary),2)
+    specificity = np.round(conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1]),2)
+    precision = np.round(metrics.precision_score(_y_test, m_opt_predict_binary),2)
+    auc = np.round(metrics.roc_auc_score(_y_test, m_opt_predict),2)
+    f1 = np.round(metrics.f1_score(_y_test, m_opt_predict_binary),2)
+    test_cases = len(_y_test)
+    test_positives = np.sum(_y_test)
+    
+    res = {
+        'accuracy': accuracy,
+        'sensitivity': sensitivity,
+        'specificity': specificity,
+        'precision': precision,
+        'f1': f1,
+        'auc': auc,
+        'threshold': t,
+        'test_cases': test_cases,
+        'test_positives': test_positives
+    }
+    
+    return res
+
 def model_load(_path):
 
     with custom_object_scope({'focal_loss': focal_loss}):
@@ -487,8 +570,8 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
 
     res = model_predictor(_model, _X_test, _y_test)
 
-    _model.save(_model_name+'_tf_'+str(res['auc']), save_format='tf')
-    _model.save(_model_name+'_h5_'+str(res['auc']), save_format='h5')
+    #_model.save(_model_name+'_tf_'+str(res['auc']), save_format='tf')
+    #_model.save(_model_name+'_h5_'+str(res['auc']), save_format='h5')
     return res
     
 
