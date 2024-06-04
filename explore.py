@@ -10,17 +10,12 @@ import work.data as d
 import utils
 import utils.image_manipulator as im
 import tensorflow as tf
-#from keras import backend as K
-#import keras
-
 from tensorflow.keras.optimizers import RMSprop, Adam
 import yaml    
 import logging
 from matplotlib import pyplot as plt
 
 from sklearn.metrics import confusion_matrix
-#from keras.utils.vis_utils import plot_model
-
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
@@ -43,6 +38,7 @@ import plotly.express as px
 import kaleido
 pio.renderers.default='svg'
 
+
 with open(r'config.yaml') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
     BASE_PATH = cfg['BASE_PATH']
@@ -61,11 +57,9 @@ with open(r'config.yaml') as file:
     
     IMG_WIDTH = cfg['IMG_WIDTH']
     IMG_HEIGHT = cfg['IMG_HEIGHT']
-
-
-BATCH_SIZE = 12
-BASE_LR = 0.001#1e-6
-SEED = 123
+    CV_ITERATIONS = cfg['CV_ITERATIONS']
+    EPOCHS = cfg['EPOCHS']
+    SEED = cfg['SEED']
 
 
 ZMIENNE = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna',
@@ -80,8 +74,16 @@ ZMIENNE = ['echo_nieznacznie_hipo', 'echo_gleboko_hipo', 'echo_hiperechogeniczna
        'torebka_naciek', 'unaczynienie_brak', 'unaczynienie_obwodowe',
        'unaczynienie_centralne', 'unaczynienie_mieszane', 'USG_AZT',
        'wezly_chlonne_patologiczne']
-    
-def chi2(_var, _data):
+
+ZMIENNE_BASE = ['echo_gleboko_hipo', 'echo_izoechogeniczna','budowa_lita', 'budowa_lito_plynowa', 'ksztalt_owalny', 
+'ksztalt_nieregularny', 'granice_zatarte', 'brzegi_mikrolobularne', 'halo','Zwapnienia_mikrozwapnienia', 'Zwapnienia_makrozwapnienia', 'torebka_naciek', 
+'unaczynienie_brak', 'unaczynienie_obwodowe', 'unaczynienie_mieszane']
+
+ZMIENNE_ENG = ['hypoechoic', 'isoechoic','solid', 'fluid-filled', 'oval', 
+'irregular', 'boundaries blurred', 'microlobular', 'halo','microcalcifications', 'macrocalcifications', 'infiltrative capsule', 
+'no vascularity', 'peripheral vascularity', 'mixed vascularity']
+
+def chi2(_data):
     stat, p_val, dof, expected = chi2_contingency(_data)
     
     return p_val
@@ -133,7 +135,7 @@ def random_forest_cv(_iters):
     df2 = df[df.rak == 0]
     df = pd.concat([df1,df2])
     
-    X = df[ZMIENNE] # zmienne objaśniające
+    X = df[ZMIENNE_BASE] # zmienne objaśniające
     y = df.rak # zmienna objaśniana
     r = []
     
@@ -199,36 +201,6 @@ def report_variables_vs_PTC():
             print("Wsród pacjentów bez raka ",round(x12/(x12+x11)*100), "% ma ", z, sep="")
             print("--------------------")
 
-
-
-
-# def xgb_model():             
-    
-#     df = d.load_data_file(BASE_FILE_PATH)
-#     df1 = df[df.label_cancer.isin(['PTC'])]
-#     df2 = df[df.rak == 0]
-#     df = pd.concat([df1,df2])
-
-#     X = df[ZMIENNE] # zmienne objaśniające
-#     y = df.rak # zmienna objaśniana
-#     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
-    
-#     np.random.seed(123)
-#     m2 = xgb.XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', )
-#     m2 = m2.fit(x_train,y_train)
-#     m2_pred_proba = m2.predict_proba(x_test)[:,1]
-#     m2_auc = roc_auc_score(y_test, m2_pred_proba)
-#     m2_fpr, m2_tpr, t = metrics.roc_curve(y_test,  m2_pred_proba)
-#     m2_optimal_idx = np.argmax(m2_tpr - m2_fpr)
-#     m2_optimal_threshold = t[m2_optimal_idx]
-#     m2_pred_proba[m2_pred_proba < m2_optimal_threshold] = 0
-#     m2_pred_proba[m2_pred_proba >= m2_optimal_threshold] = 1
-#     m2_recall = accuracy_score(y_test, m2_pred_proba)
-    
-#     dataset = pd.DataFrame({'feature': m2.get_booster().feature_names, 'importance': np.round(m2.feature_importances_,2)})
-#     dataset=dataset.sort_values('importance', ascending=False).head(10)
-#     print("AUC:", m2_auc)
-#     print(dataset)
       
 def forest_model():
     df = d.load_data_file(BASE_FILE_PATH)
@@ -263,8 +235,6 @@ def forest_model():
     print(dataset)
           
 
-
-
 def report_overview(_latex = False):
     df = d.load_data_file(BASE_FILE_PATH)    
     print("Liczba pacjentów: ", len(df), "liczba nowotworow złoliwych:", len(df[df.rak == 1]), "liczba łagodnych:", len(df[df.label_cancer == "BENIGN"]))    
@@ -297,6 +267,9 @@ def report_overview(_latex = False):
 
     print("Pacjenci wg płci:")
     tmp = pd.crosstab(df.rak, df.plec, margins = False) 
+    tmp
+    print(tmp.to_string(index=True),'\n')
+    
     if _latex:
         print(tmp.to_latex())
     else:
@@ -308,25 +281,37 @@ def report_overview(_latex = False):
     vars = []
     cancer1 = []
     cancer0 = []
-    for z in ZMIENNE:
-        tmp = df.groupby(z).size().reset_index(name='cnt')
-        vars.append(z)
-        cancer1.append(tmp.at[1,"cnt"])
-        cancer0.append(tmp.at[0,"cnt"])
+    p_values = []
+    i = 0
+
+   
+    
+    for z in ZMIENNE_BASE:
+        tmp = df.loc[df[z]==1,].groupby('rak').size().reset_index(name='cnt')
+        ct = pd.crosstab(df['rak'], df[z])
+         
+        if len(tmp) > 1:
+            chi2_p_value = round(chi2(ct),3)
+            #print(z, chi2_p_value)
+            vars.append(ZMIENNE_ENG[i])
+            p_values.append(chi2_p_value)
+            cancer1.append(tmp.at[1,"cnt"])
+            cancer0.append(tmp.at[0,"cnt"])
+        i = i + 1
 
     tmp = pd.DataFrame({
         'Feature': vars,
         'Benign': cancer0,
-        'Malignant': cancer1
+        'Malignant': cancer1,
+        'chi2 p-value': p_values
         })
     
     if _latex:
         print(tmp.to_latex(),'\n')
     else:
         print(z,'\n')
-        print(tmp,'\n')
+        print(tmp.to_string(index=False),'\n')
         
-    return df
 
 
 
@@ -334,32 +319,49 @@ def report_overview(_latex = False):
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-def result_found(_df, _c):
-    
-    founded = _df[
-        (_df['loss_function'] == _c['loss_function']) & 
-        (_df['model_name'] == _c['model_name']) &
-        (_df['learning_rate'] == _c['learning_rate']) &
-        (_df['optimizer'] == _c['optimizer']) &
-        (_df['img_size'] == _c['img_size']) &
-        (_df['batch_size'] == _c['batch_size']) &
-        (not _df['status'].isna().any())
-        ]
-    
-    if len(founded)>0: 
-        return True
-    else:
-        return False
-    
+report_overview(True)
 
-df = pd.read_csv('results/results4.1.csv', sep=";")
-cfg = pd.read_csv('results/config.csv', sep=";")
-
-for i, c in cfg.iterrows():
-    if result_found(df, c):
-        print('good')
-    
-  
+tmp = random_forest_cv(10)
 
 
-tmp.to_csv('results/results4.1.csv', sep=";")
+
+df = pd.read_csv('results/20240223_1150cancer_loss_results.csv', sep=';')
+col = [s.strip() for s in list(df.columns)]
+df.columns = col
+
+group_columns = ['date', 'img_size', 'target_feature', 'augument', 'model_name', 'epochs', 'filter', 'learning_rate', 
+                 'batch_size', 'optimizer', 'loss', 'train_dataset_size', 'test_dataset_size']
+
+res = df.groupby(group_columns).agg({
+        'accuracy': ['min', 'max', 'mean'],
+        'auc': ['min', 'max', 'mean'],
+        'sensitivity': ['min', 'max', 'mean'],
+        'specificity': ['min', 'max', 'mean'],
+        'precision': ['min', 'max', 'mean'],
+        'threshold': ['min', 'max', 'mean'],
+        'target_ratio_train': 'mean',
+        'target_ratio_test': 'mean',
+        'test_positives': 'mean',
+        'elapsed_mins': 'sum'
+    })
+
+agg_columns = res.columns
+
+res = res.reset_index()
+res.columns = group_columns + ['_'.join(col).strip() for col in agg_columns]
+res = res.rename(columns={"loss": "loss_function", "date": "run_date", 'elapsed_mins_sum': 'elapsed_mins'})
+res['iterations'] = 20
+res['status'] = 'OK'
+
+target_cols = ['model_name', 'learning_rate', 'batch_size', 'optimizer', 'loss_function', 'img_size', 'target_feature',
+               'augument', 'filter', 'epochs', 'train_dataset_size', 'test_dataset_size', 'target_ratio_train_mean', 
+               'test_positives_mean', 'target_ratio_test_mean'	, 'accuracy_min', 'accuracy_max', 'accuracy_mean', 'auc_min',
+               'auc_max', 'auc_mean', 'sensitivity_min', 'sensitivity_max', 'sensitivity_mean', 'specificity_min', 
+               'specificity_max',	'specificity_mean', 'precision_min', 'precision_max', 'precision_mean',
+               'threshold_min', 'threshold_max', 'threshold_mean'	, 'run_date','elapsed_mins', 'iterations', 'status']
+
+
+res = res[target_cols]
+
+res.to_csv('tmp.csv', sep=';')
+

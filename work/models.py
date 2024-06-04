@@ -418,6 +418,21 @@ def find_cutoff(target, predicted):
 
     return t[pos]    
 
+
+def get_model_by_name(_model_name, _img_width, _img_height):
+    if _model_name == 'ResNet101': return model_ResNet101(_img_width, _img_height)
+    if _model_name == 'ResNet152': return model_ResNet152(_img_width, _img_height)
+    if _model_name == 'ResNet50': return model_ResNet50(_img_width, _img_height)
+    if _model_name == 'VGG16': return model_VGG16(_img_width, _img_height)
+    if _model_name == 'VGG19': return model_VGG19(_img_width, _img_height)
+    if _model_name == 'denseNet121': return model_densenet121(_img_width, _img_height)
+    if _model_name == 'denseNet201': return model_densenet201(_img_width, _img_height)
+    if _model_name == 'cnn1': return model_cnn1(_img_width, _img_height)    
+    if _model_name == 'cnn2': return model_cnn2(_img_width, _img_height)    
+    if _model_name == 'cnn3': return model_cnn3(_img_width, _img_height)    
+    if _model_name == 'cnn4': return model_cnn4(_img_width, _img_height)    
+    if _model_name == 'cnn5': return model_cnn5(_img_width, _img_height)    
+
 def model_predictor(_model, _X_test, _y_test):
     
     y_base = _y_test

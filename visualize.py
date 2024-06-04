@@ -18,7 +18,7 @@ import yaml
 import logging
 import keras
 from matplotlib import pyplot as plt
-from xgboost import XGBClassifier
+#from xgboost import XGBClassifier
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
@@ -33,7 +33,6 @@ from plotly.subplots import make_subplots
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-from xgboost import XGBClassifier
 from sklearn import tree
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg16 import preprocess_input
@@ -102,7 +101,9 @@ BASE_FILE_PATH = BASE_PATH + 'baza6.csv'
 
 
 # m1 = train_and_save(30, 'models/m1')
-m1 = keras.models.load_model('models/m1')
+m1 = keras.models.load_model('models/cnn1_cancer_none_1_tf_0.5')
+plot_kernels(m1)
+
 imp_path = "C:/datasets/COI/v2/baza/modeling/all_images/test/base_resized_out_rec_from_shape_242a_1799_12.png"
 val_file = d.img_to_predict("C:/datasets/COI/v2/baza/modeling/all_images/test/base_resized_out_rec_from_shape_242a_1799_12.png")
 
@@ -117,7 +118,7 @@ plot_kernels(m1)
 m1.summary()
 
 # redefine model to output right after the first hidden layer
-model = Model(inputs=model.inputs, outputs=m1.layers[0].output)
+model =m1# Model(inputs=model.inputs, outputs=m1.layers[0].output)
 model.summary()
 # load the image with the required shape
 img = load_img(imp_path)

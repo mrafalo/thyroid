@@ -327,7 +327,7 @@ def load_data_file(_data_file):
     return df
 
     
-def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_ratio, _seed=123):
+def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_ratio, _img_size, _seed=123):
     
     df = load_data_file(_data_file)
 
@@ -342,7 +342,12 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
         if len(df.loc[(df.id_coi==id_coi) ,'rak']) > 0:
             rak = df.loc[(df.id_coi==id_coi) ,'rak'].iloc[0]
             y.append(rak)
-            X.append(np.array(cv2.imread(_base_path + f, cv2.IMREAD_GRAYSCALE)))
+            im = cv2.imread(_base_path + f, cv2.IMREAD_GRAYSCALE)
+            resized = resize_with_aspect_ratio(im, _img_size, _img_size)
+            print('base:', im.shape)
+            print('resized:', resized.shape)
+            
+            X.append(np.array(resized))
             
             #print('id_coi:', id_coi, 'file:', f, 'rak:', rak)
         else:
