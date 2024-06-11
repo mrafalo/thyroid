@@ -344,12 +344,10 @@ def split_data_4cancer(_data_file, _base_path, _augument, _val_ratio, _test_rati
             y.append(rak)
             im = cv2.imread(_base_path + f, cv2.IMREAD_GRAYSCALE)
             resized = resize_with_aspect_ratio(im, _img_size, _img_size)
-            print('base:', im.shape)
-            print('resized:', resized.shape)
+            #cv2.imwrite('C:/datasets/COI/tmp/' + str(_img_size) + f, resized)
             
             X.append(np.array(resized))
-            
-            #print('id_coi:', id_coi, 'file:', f, 'rak:', rak)
+
         else:
             raise ValueError("Patient id_coi:", id_coi, 'not found!')
     

@@ -1,3 +1,6 @@
 model_name;learning_rate;batch_size;optimizer;loss_function;img_size;target_feature;augument;filter
-cnn1;0.005;16;SGD;categorical_crossentropy;80;cancer;0;none
-cnn5;0.005;16;SGD;categorical_crossentropy;80;cancer;0;none
+cnn3;0.001;8;SGD;categorical_crossentropy;80;cancer;0;none
+cnn3;0.001;8;SGD;categorical_crossentropy;100;cancer;0;none
+cnn3;0.001;8;SGD;categorical_crossentropy;120;cancer;0;none
+cnn3;0.001;8;SGD;categorical_crossentropy;140;cancer;0;none
+cnn3;0.001;8;SGD;categorical_crossentropy;160;cancer;0;none

@@ -457,37 +457,49 @@ def model_predictor(_model, _X_test, _y_test):
     y_predict_base = _model.predict(_X_test, verbose=0)
     m_opt_predict = y_predict_base[:,1]
     
-    t = find_cutoff(_y_test,m_opt_predict)
-
-    m_opt_predict_binary = [1 if x >= t else 0 for x in m_opt_predict]
-
-    # for el in range(0, len(_y_test)):
-    #     print('true:', _y_test[el], 'predicted:', m_opt_predict[el], 'binary:', m_opt_predict_binary[el])
-        
-        
-    conf_matrix = np.round(metrics.confusion_matrix(_y_test, m_opt_predict_binary),2)
+    contains_nan = np.isnan(m_opt_predict).any()
     
-   
-    accuracy = np.round(metrics.accuracy_score(_y_test, m_opt_predict_binary),2)
-    sensitivity = np.round(metrics.recall_score(_y_test, m_opt_predict_binary),2)
-    specificity = np.round(conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1]),2)
-    precision = np.round(metrics.precision_score(_y_test, m_opt_predict_binary),2)
-    auc = np.round(metrics.roc_auc_score(_y_test, m_opt_predict),2)
-    f1 = np.round(metrics.f1_score(_y_test, m_opt_predict_binary),2)
-    test_cases = len(_y_test)
-    test_positives = np.sum(_y_test)
+    if not contains_nan:
+        t = find_cutoff(_y_test,m_opt_predict)
     
-    res = {
-        'accuracy': accuracy,
-        'sensitivity': sensitivity,
-        'specificity': specificity,
-        'precision': precision,
-        'f1': f1,
-        'auc': auc,
-        'threshold': t,
-        'test_cases': test_cases,
-        'test_positives': test_positives
-    }
+        m_opt_predict_binary = [1 if x >= t else 0 for x in m_opt_predict]
+
+            
+        conf_matrix = np.round(metrics.confusion_matrix(_y_test, m_opt_predict_binary),2)
+        
+       
+        accuracy = np.round(metrics.accuracy_score(_y_test, m_opt_predict_binary),2)
+        sensitivity = np.round(metrics.recall_score(_y_test, m_opt_predict_binary),2)
+        specificity = np.round(conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1]),2)
+        precision = np.round(metrics.precision_score(_y_test, m_opt_predict_binary),2)
+        auc = np.round(metrics.roc_auc_score(_y_test, m_opt_predict),2)
+        f1 = np.round(metrics.f1_score(_y_test, m_opt_predict_binary),2)
+        test_cases = len(_y_test)
+        test_positives = np.sum(_y_test)
+        
+        res = {
+            'accuracy': accuracy,
+            'sensitivity': sensitivity,
+            'specificity': specificity,
+            'precision': precision,
+            'f1': f1,
+            'auc': auc,
+            'threshold': t,
+            'test_cases': test_cases,
+            'test_positives': test_positives
+        }
+    else:
+        res = {
+            'accuracy': 0,
+            'sensitivity': 0,
+            'specificity': 0,
+            'precision': 0,
+            'f1': 0,
+            'auc': 0,
+            'threshold': 0,
+            'test_cases': 0,
+            'test_positives': 0
+            }
     
     return res
 
@@ -568,7 +580,7 @@ def model_fitter(_model, _X_train, _y_train, _X_val, _y_val, _X_test, _y_test, _
         
     #_model.compile(optimizer = opt, loss='categorical_crossentropy', metrics=["accuracy"]) 
     #_model.compile(optimizer = opt, loss=focal_loss, metrics=["accuracy"]) 
-    es = EarlyStopping(monitor='val_accuracy', mode='max', patience=10, restore_best_weights=True)
+    es = EarlyStopping(monitor='val_accuracy', mode='max', patience=30, restore_best_weights=True)
                     
     hist = _model.fit(_X_train, _y_train, 
                       validation_data=(_X_val, _y_val), 

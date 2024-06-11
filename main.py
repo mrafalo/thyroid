@@ -15,6 +15,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import RMSprop, Adam
 import yaml    
 from datetime import datetime
+
 import utils
 import keras
 import random
@@ -90,10 +91,10 @@ def generte_model_config(_res_filename):
 def get_model_config():
     
     #learning_rates = [0.01, 0.005]
-    learning_rates = [0.005]
+    learning_rates = [0.001]
     
     #batch_sizes = [8, 16, 32]
-    batch_sizes = [16]
+    batch_sizes = [8]
         
     #optimizers = ['Adam', 'SGD']
     optimizers = ['SGD'] 
@@ -101,12 +102,12 @@ def get_model_config():
     #losses = ['focal_loss', 'binary_crossentropy', 'squared_hinge', 'categorical_hinge', 'kl_divergence', 'categorical_crossentropy' ]
     losses = ['categorical_crossentropy']
     
-    #img_sizes = [80, 100, 120, 140, 160]
-    img_sizes = [80]
+    img_sizes = [80, 100, 120, 140, 160]
+    #img_sizes = [80]
     
     
     #models = ['cnn1', 'cnn2', 'cnn3', 'VGG16', 'VGG19', 'denseNet121', 'denseNet201']
-    models = ['cnn1', 'cnn5',]
+    models = ['cnn3']
     res = pd.DataFrame(columns = ["model_name", "learning_rate", "batch_size", "optimizer", "loss_function", "img_size"])
 
     for model in models:
@@ -190,7 +191,6 @@ def model_cv_iterator(_c, _epochs, _iters):
     single_row_df = grouped_aggregated.unstack().to_frame().transpose()
     single_row_df.columns = ['_'.join(col).strip() for col in single_row_df.columns.values]
 
-
     #grouped_aggregated.columns = ['_'.join(col).strip() for col in grouped_aggregated.columns.values]
     new_row = single_row_df.to_dict('records')[0]
     new_row['elapsed_mins'] = elapsed.seconds//1800
@@ -201,11 +201,12 @@ def model_cv_iterator(_c, _epochs, _iters):
     new_row['iterations'] = _iters
     new_row['status'] = 'OK'
 
+
     new_row.update(_c)
     logger.info(new_row)
     return new_row
         
-def train_cv(_config_file, _result_file, _new_result_file, _epochs, _iters):
+def train_cv(_config_file, _result_file, _new_result_file):
     
     random.seed(SEED)
     np.random.seed(SEED)
@@ -219,7 +220,7 @@ def train_cv(_config_file, _result_file, _new_result_file, _epochs, _iters):
             logger.info("processing config ...") 
             logger.info(c.to_dict())
     
-            res = model_cv_iterator(c, _epochs, _iters)
+            res = model_cv_iterator(c, EPOCHS, CV_ITERATIONS)
             df = pd.concat([df, pd.DataFrame([res])], ignore_index=True)
             df.to_csv(_new_result_file, mode='w', header=True, index=False, sep=';')
             logger.info("results saved ...") 
@@ -227,16 +228,16 @@ def train_cv(_config_file, _result_file, _new_result_file, _epochs, _iters):
             logger.info("config found! skipping...")
             logger.info(c.to_dict())
             
-def main_loop(_config_file, _result_file, _new_result_file, _epochs, _iters):
-    logger.info("training loop starting... epochs: " + str(_epochs) + " cv iterations: " + str(_iters))
-    train_cv(_config_file, _result_file, _new_result_file, _epochs, _iters)
+def main_loop(_config_file, _result_file, _new_result_file):
+    logger.info("training loop starting... epochs: " + str(EPOCHS) + " cv iterations: " + str(CV_ITERATIONS))
+    train_cv(_config_file, _result_file, _new_result_file)
     logger.info("training finished!")
 
 # importlib.reload(work.models)
 # importlib.reload(work.data)
 # importlib.reload(utils.image_manipulator)
 
-#generte_model_config('config/model_config.csv')
 
-main_loop("config/model_config.csv", 'results/results6.csv', 'results/results7.csv', 100, 10)
+generte_model_config('config/model_config.csv')
+main_loop("config/model_config.csv", 'results/results6.csv', 'results/results7.csv')
 
