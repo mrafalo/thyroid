@@ -56,23 +56,23 @@ with open(r'config.yaml') as file:
     IMG_PATH_CANNY = cfg['IMG_PATH_CANNY']
     IMG_PATH_FELZEN = cfg['IMG_PATH_FELZEN']
     
-    IMG_WIDTH = cfg['IMG_WIDTH']
-    IMG_HEIGHT = cfg['IMG_HEIGHT']
     CV_ITERATIONS = cfg['CV_ITERATIONS']
     EPOCHS = cfg['EPOCHS']
     SEED = cfg['SEED']
 
 
 RESULT_FILE = 'results/results6.csv'
+IMG_WIDTH = 180
+IMG_HEIGHT = 180
 
 def model_summary(_model_name):
     df = pd.read_csv(RESULT_FILE, sep=';')
     res = df.loc[(df['model_name'] == _model_name) & 
                  (df['optimizer']=='SGD') &
                  (df['learning_rate']==0.005),:].groupby('loss_function').agg({
-        'auc_max': 'max',
-        'sensitivity_max': 'max',
-        'precision_max': 'max'
+        'auc_mean': 'max',
+        'sensitivity_mean': 'max',
+        'precision_mean': 'max'
         })
     
     res = res.round(2)
@@ -112,7 +112,7 @@ def models_summary(_models, _latex=True):
     res = df.loc[df['loss_function'].isin(losses),:].pivot_table(
         index='model_name', 
         columns='loss_function', 
-        values='auc_max', 
+        values='auc_mean', 
         aggfunc=np.max
     )
 
@@ -124,13 +124,22 @@ def models_summary(_models, _latex=True):
     else:
         print(res.to_string())
 
+def models_variance(_models, _latex=True):
+    df = pd.read_csv(RESULT_FILE, sep=';')
+    cols = ['model_name', 'optimizer', 'loss_function', 'auc_mean', 'sensitivity_mean', 'precision_mean']
+    df = df[cols]
+   
+    # variance_df = df.groupby('model_name')[['auc_mean', 'sensitivity_mean', 'precision_mean']].var()
+    std_dev_df = round(df.groupby('model_name')[['auc_mean', 'sensitivity_mean', 'precision_mean']].std(),2)
+
+        
 def get_optimal_models(_latex=True):
     df = pd.read_csv(RESULT_FILE, sep=';')
-    cols = ['model_name', 'optimizer', 'loss_function', 'auc_max', 'sensitivity_max', 'precision_max']
+    cols = ['model_name', 'optimizer', 'loss_function', 'auc_mean', 'sensitivity_mean', 'precision_mean']
     df = df[cols]
-    idx_auc_max = df.groupby('model_name')['auc_max'].idxmax()
+    idx_auc_mean = df.groupby('model_name')['auc_mean'].idxmax()
 
-    res = df.loc[idx_auc_max]
+    res = df.loc[idx_auc_mean]
     
     res = res.round(2)
 
@@ -138,6 +147,7 @@ def get_optimal_models(_latex=True):
         print(res.to_latex(index=False))
     else:
         print(res.to_string(index=False))
+
 
 models = ['ResNet101', 'ResNet152', 'ResNet50', 'VGG16', 'VGG19', 'cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5']
 
